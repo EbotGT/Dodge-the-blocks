@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Dodge the Blocks - Role Badges + Debug + Table Panel</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    :root { --green:#33ff66; --accent:#ff3dac; --scanline:rgba(255,255,255,0.06); }
+    html, body { height: 100%; }
+    body { margin: 0; background:#1a1a1a; display:flex; justify-content:center; align-items:center; color:#eee; font-family:"Courier New", monospace; }
+    canvas { background:#0b0b0b; display:block; border:2px solid #2a2a2a; box-shadow:0 0 24px rgba(0,0,0,.6) inset; z-index:1; }
+
+    button { pointer-events:auto; touch-action: manipulation; }
+    .btn { font-family:inherit; font-weight:bold; padding:12px 22px; font-size:18px; cursor:pointer; margin:6px; border:2px solid var(--green); background:transparent; color:var(--green); text-shadow:0 0 6px rgba(51,255,102,.5); }
+    .btn:hover { background: rgba(51,255,102,.1); }
+    .btn-accent { border-color: var(--accent); color: var(--accent); text-shadow: 0 0 6px rgba(255,61,172,.6); }
+
+    #topBar { position:fixed; top:8px; left:8px; right:8px; display:flex; gap:8px; align-items:center; justify-content:space-between; z-index:4; font-size:14px; pointer-events:none; }
+    #userInfo, #highInfo, #netInfo { pointer-events:auto; opacity:.9; }
+    #userInfo .role { margin-left:6px; color:gold; font-weight:bold; }
+    #netInfo { font-size:12px; color:#9ad6ad; }
+    #backHomeBtn { pointer-events:auto; display:none; padding:6px 10px; font-size:14px; cursor:pointer; border:2px solid var(--green); background:transparent; color:var(--green); }
+    #backHomeBtn:hover { background:rgba(51,255,102,.1); }
+
+    #homeOverlay { position:fixed; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+      background: repeating-linear-gradient(0deg,transparent 0px, transparent 2px, var(--scanline) 3px, transparent 4px), radial-gradient(circle at 50% 20%, rgba(255,61,172,.12), transparent 40%), #050505;
+      text-align:center; overflow:hidden; z-index:3; pointer-events:auto; }
+    .retro-box { border:3px solid var(--green); box-shadow:0 0 24px rgba(51,255,102,.25), inset 0 0 12px rgba(51,255,102,.1); padding:22px 28px; background:#0c0c0c; pointer-events:auto; }
+    #title { font-size:48px; letter-spacing:2px; margin:0 0 8px 0; color:#33ff66; text-shadow:0 0 8px rgba(51,255,102,.7), 0 0 2px rgba(51,255,102,.7); }
+    #subtitle { margin-bottom:18px; color:#9ad6ad; font-size:16px; text-shadow: 0 0 4px rgba(154,214,173,0.6); animation: crtFlickerRandom 3s infinite; }
+    @keyframes crtFlickerRandom { 0%{opacity:1}5%{opacity:.8}7%{opacity:.4}8%{opacity:1}10%{opacity:.9}12%{opacity:1}20%{opacity:.7}22%{opacity:1}30%{opacity:.8}31%{opacity:1}45%{opacity:.9}46%{opacity:.5}47%{opacity:1}60%{opacity:.85}61%{opacity:1}80%{opacity:.7}81%{opacity:1}100%{opacity:1} }
+    .pressStart { margin-top:8px; font-size:16px; color:var(--accent); text-shadow:0 0 8px rgba(255,61,172,.6); }
+    .corner { position:absolute; top:16px; right:16px; display:flex; gap:8px; pointer-events:auto; }
+
+    /* Cheat input bar */
+    #controls { 
+      position:fixed; bottom:60px; left:50%; transform:translateX(-50%);
+      display:none; gap:8px; z-index:7;
+      background:#0e0e0e; padding:8px 10px; border:1px solid #2a2a2a; border-radius:6px;
+    }
+    #cheatInput { padding:8px; font-size:14px; border:1px solid #3a3a3a; background:#0b0b0b; color:#fff; }
+
+    /* NEW: small fixed panel for the cheat table */
+    #cheatPanel {
+      position: fixed;
+      bottom: 10px;
+      right: 10px;
+      max-height: 230px;
+      max-width: 360px;
+      overflow: auto;
+      background: rgba(0,0,0,0.9);
+      padding: 10px;
+      border: 1px solid var(--green);
+      border-radius: 6px;
+      z-index: 9999;
+      display: none;
+      font-size: 12px;
+    }
+    #cheatPanel table { width:100%; border-collapse:collapse; }
+    #cheatPanel th, #cheatPanel td { border:1px solid #666; padding:4px; }
+
+    #lbOverlay { position:fixed; inset:0; background:rgba(0,0,0,.8); display:none; align-items:center; justify-content:center; z-index:5; pointer-events:auto; }
+    #lbBox { width:560px; max-height:75vh; overflow:auto; background:#121212; border:2px solid var(--green); box-shadow:0 0 20px rgba(51,255,102,.3); border-radius:8px; padding:16px; }
+    #lbTable { width:100%; border-collapse:collapse; }
+    #lbTable th, #lbTable td { border:1px solid #666; padding:6px 8px; }
+    #lbActions { display:flex; gap:8px; justify-content:flex-end; margin-top:10px; }
+
+    #nameOverlay { position:fixed; inset:0; background:rgba(0,0,0,.8); display:none; align-items:center; justify-content:center; z-index:6; pointer-events:auto; }
+    #nameBox { width:360px; background:#101010; border:2px solid var(--green); padding:16px; border-radius:8px; box-shadow:0 0 20px rgba(51,255,102,.3); }
+    #nameInput { width:100%; padding:10px; font-size:16px; background:#0e0e0e; color:#fff; border:1px solid #3a3a3a; box-sizing:border-box; }
+    #nameErr { color:#ff6b6b; min-height:1.2em; font-size:12px; }
+
+    #errBanner { position:fixed; bottom:8px; left:8px; right:8px; background:#0e1010; color:#e3ffee; padding:8px 10px; border:1px solid #2dd562; border-radius:6px; font-size:12px; z-index:10; display:none; white-space:pre-wrap; }
+    #errBanner small{ opacity:.8; }
+
+    #padBanner{
+      position:fixed; bottom:8px; right:8px;
+      background:#0b1b0b; border:1px solid #2dd562;
+      padding:6px 8px; border-radius:6px;
+      font-size:12px; opacity:.9; display:none; z-index:12; color:#aef;
+    }
+  </style>
+  <!-- UMD build for maximum compatibility -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.43.1/dist/umd/supabase.js"></script>
+</head>
+<body>
+  <div id="topBar">
+    <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+      <div id="userInfo">User: (not set)</div>
+      <div id="highInfo">High: 0</div>
+      <div id="netInfo"></div>
+    </div>
+    <button id="backHomeBtn" class="btn" type="button">⮐ Back to Home</button>
+  </div>
+
+  <canvas id="gameCanvas" width="400" height="600"></canvas>
+
+  <div id="homeOverlay">
+    <div class="retro-box">
+      <div id="title">DODGE THE BLOCKS</div>
+      <div id="subtitle">made by Ethan Fehler</div>
+      <button id="playBtn" class="btn btn-accent" type="button">▶ PLAY</button>
+      <div class="pressStart">PRESS PLAY TO START</div>
+    </div>
+    <div class="corner">
+      <button id="lbBtn" class="btn" type="button">LEADERBOARD</button>
+      <button id="setNameBtn" class="btn" type="button">SET USERNAME</button>
+    </div>
+  </div>
+
+  <div id="controls">
+    <div class="row">
+      <input type="password" id="cheatInput" placeholder="Enter cheat code">
+      <button id="applyCheat" class="btn" type="button">Apply</button>
+    </div>
+  </div>
+
+  <!-- NEW: separate floating panel for the cheat table -->
+  <div id="cheatPanel"></div>
+
+  <button id="restartBtn" class="btn" style="margin-top:14px;" type="button">Restart Game</button>
+
+  <div id="lbOverlay">
+    <div id="lbBox">
+      <h3 style="margin:0 0 8px 0;">Global Leaderboard</h3>
+      <table id="lbTable">
+        <thead><tr><th>#</th><th>User</th><th>Best Score</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <div id="lbActions">
+        <button id="lbClose" class="btn" type="button">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="nameOverlay">
+    <div id="nameBox">
+      <h3>Set your username</h3>
+      <input id="nameInput" placeholder="e.g., PlayerOne" maxlength="20">
+      <div id="nameErr"></div>
+      <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:10px;">
+        <button id="nameCancel" class="btn" type="button">Cancel</button>
+        <button id="nameSave" class="btn btn-accent" type="button">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="errBanner"></div>
+  <div id="padBanner">🎮 Controller connected</div>
+
+  <script>
+  (function(){
+    // ===== Error Manager with codes =====
+    var ErrorMgr = (function(){
+      var banner = null;
+      var map = {
+        E_INIT_START: "Starting initialization",
+        E_INIT_DONE:  "Initialization complete",
+        E_SUPA_IMPORT: "Supabase library missing (window.supabase not found).",
+        E_SUPA_CLIENT: "Failed to create Supabase client.",
+        E_CANVAS_CTX:  "Canvas 2D context not available.",
+        E_BTN_BIND:    "Failed to bind one or more buttons.",
+        E_DB_READ:     "Leaderboard read failed.",
+        E_DB_WRITE:    "Score submit failed.",
+        E_LOOP:        "Game loop error."
+      };
+      function el(){ return banner || (banner=document.getElementById('errBanner')); }
+      function show(code, extra){
+        var e = el();
+        e.style.display='block';
+        var msg = (map[code] || "Unknown error") + (extra? (" | " + extra) : "");
+        e.textContent = "⚠ " + code + ": " + msg;
+        console.log("[DBG]", code, msg);
+      }
+      function info(text){
+        var e = el();
+        e.style.display='block';
+        e.innerHTML = "ℹ " + text + (e.innerHTML? ("<br><small>"+e.innerHTML+"</small>"):"");
+        console.log("[INFO]", text);
+      }
+      function hide(){ var e=el(); e.style.display='none'; e.textContent=''; }
+      return { show:show, info:info, hide:hide };
+    })();
+
+    ErrorMgr.info("E_INIT_START");
+
+    // ===== Helpers =====
+    function $(id){ return document.getElementById(id); }
+    var userInfo = $('userInfo'), highInfo=$('highInfo'), netInfo=$('netInfo');
+    var backHomeBtn=$('backHomeBtn'), homeOverlay=$('homeOverlay'), playBtn=$('playBtn');
+    var lbBtn=$('lbBtn'), lbOverlay=$('lbOverlay'), lbClose=$('lbClose'), lbTableBody = document.querySelector('#lbTable tbody');
+    var setNameBtn=$('setNameBtn');
+    var nameOverlay=$('nameOverlay'), nameInput=$('nameInput'), nameSave=$('nameSave'), nameCancel=$('nameCancel'), nameErr=$('nameErr');
+    var canvas=$('gameCanvas'), ctx = null;
+    try{ ctx = canvas.getContext('2d'); }catch(e){ ErrorMgr.show("E_CANVAS_CTX", e&&e.message); }
+    var restartBtn=$('restartBtn'), cheatInput=$('cheatInput'), applyCheat=$('applyCheat'), controlsDiv=$('controls');
+    var cheatPanel = $('cheatPanel');
+
+    function loadScoresLocal(){ try { return JSON.parse(localStorage.getItem('dodge_scores')||'{}'); } catch(e){ return {}; } }
+    function saveScoresLocal(obj){ localStorage.setItem('dodge_scores', JSON.stringify(obj)); }
+    function getUser(){ return (localStorage.getItem('dodge_user')||'').trim(); }
+    function setUser(u){ localStorage.setItem('dodge_user', u); }
+
+    // ===== Supabase client via UMD =====
+    var supabase = null;
+    try{
+      if(!window.supabase){ ErrorMgr.show("E_SUPA_IMPORT"); }
+      else{
+        var SUPABASE_URL = "https://staohtadlbeextexepdz.supabase.co";
+        var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN0YW9odGFkbGJlZXh0ZXhlcGR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2MjAwNTIsImV4cCI6MjA3MDE5NjA1Mn0.OLQ3GIM4JV8oajuczviBsM-ueoJWV6ro65NIjpjYq0U";
+        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      }
+    }catch(e){
+      ErrorMgr.show("E_SUPA_CLIENT", e&&e.message);
+    }
+
+    function updateSetNameButton(){
+      var u = getUser();
+      setNameBtn.textContent = u ? "EDIT USERNAME" : "SET USERNAME";
+    }
+
+    function renderUserInfo(u, role){
+      var tag = role ? ' <span class="role">['+role+']</span>' : '';
+      userInfo.innerHTML = 'User: ' + (u || '(not set)') + tag;
+    }
+
+    function updateUserUI(localOnly){
+      var u = getUser();
+      renderUserInfo(u, null);
+      updateSetNameButton();
+      var localScores = loadScoresLocal();
+      var localBest = (u && localScores[u]) ? localScores[u] : 0;
+      if(localOnly || !supabase){
+        highInfo.textContent = 'High: ' + localBest;
+        netInfo.textContent = supabase ? '' : 'Offline leaderboard';
+        return;
+      }
+      (async function(){
+        try{
+          netInfo.textContent = 'Syncing…';
+          var res = await supabase.from('scores').select('best,role').eq('username', u).maybeSingle();
+          if(res.error){ netInfo.textContent='Offline (read error)'; highInfo.textContent = 'High: ' + localBest; ErrorMgr.show("E_DB_READ", res.error.message); return; }
+          var remoteBest = (res.data && res.data.best) ? res.data.best : 0;
+          var role = (res.data && res.data.role) ? res.data.role : null;
+          renderUserInfo(u, role);
+          highInfo.textContent = 'High: ' + Math.max(localBest, remoteBest);
+          netInfo.textContent = 'Online';
+        }catch(e){
+          ErrorMgr.show("E_DB_READ", e&&e.message);
+        }
+      })();
+    }
+
+    function openNameModal(prefill){ if(typeof prefill==='undefined') prefill=''; nameOverlay.style.display='flex'; nameInput.value = prefill; nameErr.textContent=''; setTimeout(function(){ try{nameInput.focus();}catch(_){ } },0); }
+    function closeNameModal(){ nameOverlay.style.display='none'; }
+    function validateName(n){
+      var trimmed=(n||'').trim();
+      if(!trimmed) return 'Please enter a username.';
+      if(trimmed.length < 2) return 'At least 2 characters.';
+      if(!/^[A-Za-z0-9_\- ]+$/.test(trimmed)) return 'Letters, numbers, spaces, _ and - only.';
+      return '';
+    }
+    function saveNameFromModal(){
+      var err = validateName(nameInput.value);
+      if(err){ nameErr.textContent = err; return; }
+      var u = nameInput.value.trim();
+      setUser(u);
+      updateUserUI();
+      closeNameModal();
+      if(supabase){ updateUserUI(); }
+    }
+
+    // ===== Game state =====
+    var player = { x: 180, y: 550, width: 40, height: 40, speed: 24, color: 'lime' };
+    var obstacles = [], baseObstacleSpeed = 4, obstacleSpeed = baseObstacleSpeed;
+    var score = 0, gameOver = false, baseSpawnInterval = 500, spawnInterval = baseSpawnInterval;
+    var spawnTimer=null, paused = true, speedIncreaseTimer=null, maxObstacleSpeed = 12;
+    var keys = { left:false, right:false };
+    var screen = 'home', lbOpen = false;
+
+    var cheats = { godmode:false, reverse:false, rainbow:false, ghost:false, speedy:false, bigplayer:false, tinyplayer:false, table:false, slowmo:null, slowtime:null, fastspawn:null };
+    var cheatedThisRun = false;
+    var cheatColors = { godmode:"gold", reverse:"red", rainbow:null, ghost:"gray", speedy:"cyan", bigplayer:"orange", tinyplayer:"pink", table:"khaki", slowmo:"lightblue", slowtime:"lightgreen", fastspawn:"violet" };
+
+    function controlsEnabled(){ return screen==='playing' && !lbOpen && controlsDiv.style.display!=='flex'; }
+
+    function spawnObstacle(){ if(!paused && !gameOver){ var w=Math.random()*60+20, x=Math.random()*(canvas.width-w); obstacles.push({x:x, y: cheats.reverse? canvas.height+20 : -20, width:w, height:20, color:'red'});} }
+    function startSpawning(){ try{ clearInterval(spawnTimer); }catch(_){ } spawnTimer=setInterval(spawnObstacle, spawnInterval); }
+    function startSpeedIncrease(){ try{ clearInterval(speedIncreaseTimer); }catch(_){ } speedIncreaseTimer=setInterval(function(){ if(!paused && !gameOver && baseObstacleSpeed<maxObstacleSpeed){ baseObstacleSpeed+=0.5; refreshEffectiveSpeeds(); } },10000); }
+
+    function refreshEffectiveSpeeds(){
+      if (cheats.slowmo != null) obstacleSpeed = Number(cheats.slowmo);
+      else if (cheats.slowtime != null) obstacleSpeed = Number(cheats.slowtime);
+      else obstacleSpeed = baseObstacleSpeed;
+      var newSpawn = baseSpawnInterval;
+      if (cheats.fastspawn != null) newSpawn = Number(cheats.fastspawn);
+      else if (cheats.slowtime != null) newSpawn = 1500;
+      if (newSpawn !== spawnInterval){ spawnInterval = newSpawn; startSpawning(); }
+    }
+
+    function update(){
+      if(gameOver||paused||screen!=='playing') return;
+      if(keys.left) player.x-=player.speed;
+      if(keys.right) player.x+=player.speed;
+      if(player.x<0) player.x=0;
+      if(player.x+player.width>canvas.width) player.x=canvas.width-player.width;
+      obstacles.forEach(function(o){ o.y += (cheats.reverse? -obstacleSpeed : obstacleSpeed); });
+      obstacles = obstacles.filter(function(o){ return o.y<canvas.height+40 && o.y>-40; });
+      if(!cheats.godmode){
+        obstacles.forEach(function(o){
+          if(player.x < o.x + o.width && player.x + player.width > o.x && player.y < o.y + o.height && player.y + player.height > o.y){
+            gameOver=true; try{ clearInterval(spawnTimer); clearInterval(speedIncreaseTimer);}catch(_){}
+            var u = getUser();
+            if(u && !cheatedThisRun){ submitScore(u, score); }
+          }
+        });
+      }
+      score += (cheats.reverse ? -1 : 1);
+      if(cheats.rainbow){
+        player.color = 'hsl(' + ((Date.now()/10)%360) + ',100%,50%)';
+        obstacles.forEach(function(o,i){ o.color = 'hsl(' + ((Date.now()/10 + i*20)%360) + ',100%,50%)'; });
+      } else {
+        player.color = cheats.ghost ? 'rgba(0,0,0,0)' : 'lime';
+      }
+    }
+
+    function draw(){
+      try{
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+        ctx.fillStyle=player.color; ctx.fillRect(player.x,player.y,player.width,player.height);
+        obstacles.forEach(function(o){ ctx.fillStyle=o.color; ctx.fillRect(o.x,o.y,o.width,o.height); });
+        ctx.fillStyle='white'; ctx.font='20px Arial'; ctx.fillText('Score: '+score,10,30);
+        var active = Object.keys(cheats).filter(function(c){ return cheats[c] || cheats[c]===0; });
+        if(active.length){
+          ctx.font='14px Arial';
+          active.forEach(function(c,i){
+            ctx.fillStyle = (c==='rainbow') ? ('hsl(' + ((Date.now()/10)%360) + ',100%,50%)') : (cheatColors[c] || 'white');
+            var val = (typeof cheats[c] === 'number') ? ('(' + cheats[c] + ')') : '';
+            ctx.fillText(c+val, canvas.width-150, 20 + i*16);
+          });
+        }
+        if(gameOver){ ctx.fillStyle='yellow'; ctx.font='40px Arial'; ctx.fillText('GAME OVER',80,canvas.height/2); }
+        if(paused || screen!=='playing'){ ctx.fillStyle='orange'; ctx.font='30px Arial'; ctx.fillText('PAUSED',150,canvas.height/2); }
+      }catch(e){
+        ErrorMgr.show("E_LOOP", e&&e.message);
+      }
+    }
+    (function loop(){ try{ update(); draw(); }catch(e){ ErrorMgr.show("E_LOOP", e&&e.message);} requestAnimationFrame(loop); })();
+
+    function buildCheatTableHTML(){
+      return '<table><tr><th>Cheat</th><th>Effect</th><th>Disable</th></tr>'+
+        '<tr><td>godmode</td><td>Invincibility</td><td>disable godmode</td></tr>'+
+        '<tr><td>reverse</td><td>Blocks up; score down</td><td>disable reverse</td></tr>'+
+        '<tr><td>rainbow</td><td>Rainbow colors</td><td>disable rainbow</td></tr>'+
+        '<tr><td>ghost</td><td>Invisible player</td><td>disable ghost</td></tr>'+
+        '<tr><td>speedy</td><td>Player speed 35</td><td>disable speedy</td></tr>'+
+        '<tr><td>bigplayer</td><td>80×80 player</td><td>disable bigplayer</td></tr>'+
+        '<tr><td>tinyplayer</td><td>20×20 player</td><td>disable tinyplayer</td></tr>'+
+        '<tr><td>pointsX</td><td>Add X points</td><td>-</td></tr>'+
+        '<tr><td>slowmoX</td><td>Obstacle speed = X</td><td>disable slowmo</td></tr>'+
+        '<tr><td>slowtimeX</td><td>Slow speed & spawn</td><td>disable slowtime</td></tr>'+
+        '<tr><td>fastspawnX</td><td>Spawn every X ms</td><td>disable fastspawn</td></tr>'+
+        '<tr><td>clear</td><td>Remove all blocks</td><td>-</td></tr>'+
+        '<tr><td>table</td><td>Show this table</td><td>disable table</td></tr>'+
+      '</table>';
+    }
+
+    function showCheatPanel(on){
+      if(on){
+        cheatPanel.innerHTML = buildCheatTableHTML();
+        cheatPanel.style.display = 'block';
+      } else {
+        cheatPanel.style.display = 'none';
+        cheatPanel.innerHTML = '';
+      }
+    }
+
+    function showCheatBar(){ if(!controlsEnabled()) return; paused=true; controlsDiv.style.display='flex'; try{cheatInput.focus();}catch(_){ } }
+    function closeCheatBar(){ cheatInput.value=''; controlsDiv.style.display='none'; paused=false; }
+    function refreshEffectiveAndClose(){ refreshEffectiveSpeeds(); closeCheatBar(); }
+
+    function applyCheatCode(){
+      var raw=(cheatInput.value||'').trim().toLowerCase(); if(!raw){ closeCheatBar(); return; }
+      var isCheatThatMatters = !(raw.indexOf('disable ')===0) && !(raw.indexOf('clear')===0) && !(raw.indexOf('table')===0);
+      if(isCheatThatMatters) cheatedThisRun = true;
+
+      if(raw.indexOf('disable ')===0){
+        var d=raw.slice(8).trim();
+        if(cheats.hasOwnProperty(d)){
+          if(d==='table'){ cheats.table=false; showCheatPanel(false); refreshEffectiveAndClose(); return; }
+          if(typeof cheats[d]==='boolean'){
+            cheats[d]=false;
+            if(d==='bigplayer'||d==='tinyplayer'){ player.width=40; player.height=40; }
+            if(d==='speedy') player.speed=24;
+          } else { cheats[d]=null; }
+          return refreshEffectiveAndClose();
+        }
+      }
+
+      var m=raw.match(/^([a-z]+)(\d+)?$/); if(!m){ closeCheatBar(); return; }
+      var base=m[1], num=m[2]?parseInt(m[2],10):null;
+      if(cheats.hasOwnProperty(base) && typeof cheats[base]==='boolean'){
+        cheats[base]=true;
+        if(base==='speedy') player.speed=35;
+        if(base==='bigplayer'){ player.width=80; player.height=80; }
+        if(base==='tinyplayer'){ player.width=20; player.height=20; }
+        if(base==='table'){ showCheatPanel(true); }
+      } else if(base==='points'){
+        score += (num!=null?num:1000);
+      } else if(base==='slowmo'){
+        cheats.slowmo = (num!=null?num:1);
+      } else if(base==='slowtime'){
+        cheats.slowtime = (num!=null?num:1);
+      } else if(base==='fastspawn'){
+        cheats.fastspawn = (num!=null?num:200);
+      } else if(base==='clear'){
+        obstacles = [];
+      }
+      refreshEffectiveAndClose();
+    }
+
+    function goHome(){ 
+      screen='home'; paused=true; gameOver=false; 
+      homeOverlay.style.display='flex'; backHomeBtn.style.display='none'; 
+      try{ clearInterval(spawnTimer); clearInterval(speedIncreaseTimer);}catch(_){}
+      controlsDiv.style.display='none';
+      showCheatPanel(false);
+    }
+    function startPlaying(){
+      if(!getUser()){ openNameModal(''); return; }
+      screen='playing'; paused=false; gameOver=false; score=0; obstacles=[]; cheatedThisRun=false;
+      player.x=180; player.width=40; player.height=40; player.speed=24;
+      baseObstacleSpeed=4; obstacleSpeed=baseObstacleSpeed; baseSpawnInterval=500; spawnInterval=baseSpawnInterval;
+      for (var k in cheats){ if(typeof cheats[k]==='boolean') cheats[k]=false; else cheats[k]=null; }
+      homeOverlay.style.display='none'; backHomeBtn.style.display='inline-block';
+      controlsDiv.style.display='none';
+      showCheatPanel(false);
+      startSpawning(); startSpeedIncrease(); refreshEffectiveSpeeds();
+    }
+
+    // ===== Buttons/Listners binding with guards =====
+    var bindErrors = [];
+    try{ playBtn.addEventListener('click', startPlaying); }catch(e){ bindErrors.push('playBtn'); }
+    try{ restartBtn.addEventListener('click', function(){ if(screen!=='playing') return; startPlaying(); }); }catch(e){ bindErrors.push('restartBtn'); }
+    try{ backHomeBtn.addEventListener('click', goHome); }catch(e){ bindErrors.push('backHomeBtn'); }
+    try{ lbBtn.addEventListener('click', function(){ openLeaderboard(); }); }catch(e){ bindErrors.push('lbBtn'); }
+    try{ lbClose.addEventListener('click', function(){ lbOverlay.style.display='none'; lbOpen = false; }); }catch(e){ bindErrors.push('lbClose'); }
+    try{ setNameBtn.addEventListener('click', function(){ openNameModal(getUser()); }); }catch(e){ bindErrors.push('setNameBtn'); }
+    try{ nameSave.addEventListener('click', saveNameFromModal); }catch(e){ bindErrors.push('nameSave'); }
+    try{ nameCancel.addEventListener('click', closeNameModal); }catch(e){ bindErrors.push('nameCancel'); }
+    try{ applyCheat.addEventListener('click', applyCheatCode); }catch(e){ bindErrors.push('applyCheat'); }
+    try{ cheatInput.addEventListener('keydown', function(e){ if(e.key==='Enter') applyCheatCode(); if(e.key==='Escape') closeCheatBar(); }); }catch(e){ bindErrors.push('cheatInput'); }
+    try{ nameInput.addEventListener('keydown', function(e){ if(e.key==='Enter') saveNameFromModal(); if(e.key==='Escape') closeNameModal(); }); }catch(e){ bindErrors.push('nameInput'); }
+    if(bindErrors.length){ ErrorMgr.show("E_BTN_BIND", "Failed: " + bindErrors.join(', ')); }
+
+    // ===== Leaderboard (with role) =====
+    function openLeaderboard(){
+      lbOpen = true;
+      lbTableBody.innerHTML = '<tr><td colspan="3" style="text-align:center;opacity:.8;">Loading…</td></tr>';
+      lbOverlay.style.display='flex';
+      if(!supabase){
+        var scores = loadScoresLocal();
+        var rows = Object.keys(scores).map(function(user){ return {user:user, best:scores[user], role:null}; }).sort(function(a,b){ return b.best-a.best; }).slice(0,50);
+        lbTableBody.innerHTML = rows.length ? rows.map(function(r,i){ 
+          var roleTag = r.role ? ' <span style="color:gold; font-weight:bold;">['+r.role+']</span>' : '';
+          return '<tr><td>'+(i+1)+'</td><td>'+r.user+roleTag+'</td><td>'+r.best+'</td></tr>'; 
+        }).join('') : '<tr><td colspan="3" style="text-align:center;opacity:.8;">No scores yet</td></tr>';
+        return;
+      }
+      (async function(){
+        try{
+          var res = await supabase.from('scores').select('username,best,role').order('best', { ascending:false }).limit(50);
+          if(res.error){ lbTableBody.innerHTML = '<tr><td colspan="3" style="text-align:center;opacity:.8;">Load error</td></tr>'; ErrorMgr.show("E_DB_READ", res.error.message); return; }
+          var data = res.data;
+          lbTableBody.innerHTML = (data && data.length) ? data.map(function(r,i){ 
+            var roleTag = r.role ? ' <span style="color:gold; font-weight:bold;">['+r.role+']</span>' : '';
+            return '<tr><td>'+(i+1)+'</td><td>'+r.username+roleTag+'</td><td>'+r.best+'</td></tr>'; 
+          }).join('') : '<tr><td colspan="3" style="text-align:center;opacity:.8;">No scores yet</td></tr>';
+        }catch(e){
+          ErrorMgr.show("E_DB_READ", e&&e.message);
+          lbTableBody.innerHTML = '<tr><td colspan="3" style="text-align:center;opacity:.8;">Load error</td></tr>';
+        }
+      })();
+    }
+
+    // ===== Score upsert (does not touch role) =====
+    function saveBestLocal(u, s){
+      var scores = loadScoresLocal();
+      var prev = scores[u] || 0;
+      if(s > prev){ scores[u] = s; saveScoresLocal(scores); }
+    }
+    async function submitScore(u, s){
+      saveBestLocal(u, s);
+      if(!supabase){ updateUserUI(true); return; }
+      try{
+        var res = await supabase.from('scores').upsert({ username: u, best: s }).select('best').maybeSingle();
+        if(res.error){ ErrorMgr.show("E_DB_WRITE", res.error.message); updateUserUI(); return; }
+        updateUserUI();
+      }catch(e){
+        ErrorMgr.show("E_DB_WRITE", e&&e.message);
+      }
+    }
+
+    // ===== Keyboard controls =====
+    document.addEventListener('keydown', function(e){
+      if(!controlsEnabled()) return;
+      if(e.key==='ArrowLeft') keys.left=true;
+      if(e.key==='ArrowRight') keys.right=true;
+      if(e.key && e.key.toLowerCase && e.key.toLowerCase()==='p') paused=!paused;
+      if(e.key==='Shift') showCheatBar();
+    });
+    document.addEventListener('keyup', function(e){
+      if(!controlsEnabled()) return;
+      if(e.key==='ArrowLeft') keys.left=false;
+      if(e.key==='ArrowRight') keys.right=false;
+    });
+
+    // ===== Gamepad support =====
+    var gpConnected = false;
+    var lastButtons = [];
+    var gamepadPollId = null;
+    function showPadBanner(on){ var el=$('padBanner'); if(!el) return; el.style.display = on ? 'block' : 'none'; }
+    window.addEventListener('gamepadconnected', function(){ gpConnected = true; showPadBanner(true); });
+    window.addEventListener('gamepaddisconnected', function(){ gpConnected = false; showPadBanner(false); });
+    function buttonPressed(gp, i){ return gp && gp.buttons && gp.buttons[i] && gp.buttons[i].pressed; }
+    function readGamepad(){
+      var pads = navigator.getGamepads ? navigator.getGamepads() : [];
+      var gp = pads && pads[0];
+      if(!gp) return;
+      var lx = (gp.axes && gp.axes.length) ? gp.axes[0] : 0;
+      var dpadLeft  = buttonPressed(gp,14);
+      var dpadRight = buttonPressed(gp,15);
+      var DEAD = 0.25;
+      var moveLeft  = (lx < -DEAD) || dpadLeft;
+      var moveRight = (lx >  DEAD) || dpadRight;
+      if (controlsEnabled()){
+        keys.left  = moveLeft;
+        keys.right = moveRight;
+      }
+      var btn = function(i){ return buttonPressed(gp,i) ? 1 : 0; };
+      var was = function(i){ return lastButtons[i] || 0; };
+      if (controlsEnabled() && btn(9) && !was(9)) { paused = !paused; }
+      if (btn(0) && !was(0)) {
+        if (screen === 'home') startPlaying();
+        else if (screen === 'playing' && gameOver) startPlaying();
+      }
+      lastButtons = (gp.buttons || []).map(function(b){ return (b && b.pressed) ? 1 : 0; });
+    }
+    function startGamepadPolling(){
+      if (gamepadPollId) cancelAnimationFrame(gamepadPollId);
+      function tick(){ if (gpConnected) readGamepad(); gamepadPollId = requestAnimationFrame(tick); }
+      tick();
+    }
+    startGamepadPolling();
+
+    // ===== Start up =====
+    function goHome(){ 
+      screen='home'; paused=true; gameOver=false; 
+      homeOverlay.style.display='flex'; backHomeBtn.style.display='none'; 
+      try{ clearInterval(spawnTimer); clearInterval(speedIncreaseTimer);}catch(_){}
+      controlsDiv.style.display='none';
+      showCheatPanel(false);
+    }
+    function startPlaying(){
+      if(!getUser()){ openNameModal(''); return; }
+      screen='playing'; paused=false; gameOver=false; score=0; obstacles=[]; cheatedThisRun=false;
+      player.x=180; player.width=40; player.height=40; player.speed=24;
+      baseObstacleSpeed=4; obstacleSpeed=baseObstacleSpeed; baseSpawnInterval=500; spawnInterval=baseSpawnInterval;
+      for (var k in cheats){ if(typeof cheats[k]==='boolean') cheats[k]=false; else cheats[k]=null; }
+      homeOverlay.style.display='none'; backHomeBtn.style.display='inline-block';
+      controlsDiv.style.display='none';
+      showCheatPanel(false);
+      startSpawning(); startSpeedIncrease(); refreshEffectiveSpeeds();
+    }
+
+    // Bind buttons
+    var bindErrors = [];
+    try{ playBtn.addEventListener('click', startPlaying); }catch(e){ bindErrors.push('playBtn'); }
+    try{ restartBtn.addEventListener('click', function(){ if(screen!=='playing') return; startPlaying(); }); }catch(e){ bindErrors.push('restartBtn'); }
+    try{ backHomeBtn.addEventListener('click', goHome); }catch(e){ bindErrors.push('backHomeBtn'); }
+    try{ lbBtn.addEventListener('click', function(){ openLeaderboard(); }); }catch(e){ bindErrors.push('lbBtn'); }
+    try{ lbClose.addEventListener('click', function(){ lbOverlay.style.display='none'; lbOpen = false; }); }catch(e){ bindErrors.push('lbClose'); }
+    try{ setNameBtn.addEventListener('click', function(){ openNameModal(getUser()); }); }catch(e){ bindErrors.push('setNameBtn'); }
+    try{ nameSave.addEventListener('click', saveNameFromModal); }catch(e){ bindErrors.push('nameSave'); }
+    try{ nameCancel.addEventListener('click', closeNameModal); }catch(e){ bindErrors.push('nameCancel'); }
+    try{ applyCheat.addEventListener('click', applyCheatCode); }catch(e){ bindErrors.push('applyCheat'); }
+    try{ cheatInput.addEventListener('keydown', function(e){ if(e.key==='Enter') applyCheatCode(); if(e.key==='Escape') closeCheatBar(); }); }catch(e){ bindErrors.push('cheatInput'); }
+    try{ nameInput.addEventListener('keydown', function(e){ if(e.key==='Enter') saveNameFromModal(); if(e.key==='Escape') closeNameModal(); }); }catch(e){ bindErrors.push('nameInput'); }
+    if(bindErrors.length){ ErrorMgr.show("E_BTN_BIND", "Failed: " + bindErrors.join(', ')); }
+
+    // Init
+    updateUserUI();
+    controlsDiv.style.display='none';
+    goHome();
+    if(!supabase){ ErrorMgr.info('Running in offline mode (no Supabase). Scores saved locally.'); }
+    ErrorMgr.info("E_INIT_DONE");
+  })();
+  </script>
+</body>
+</html>
