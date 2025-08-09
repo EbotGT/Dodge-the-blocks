@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Dodge the Blocks — Owner Cheats v9 (Safari-safe + Button Delegation)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <style>
+    :root { --green:#33ff66; --accent:#ff3dac; --scanline:rgba(255,255,255,0.06); }
+    html, body { height: 100%; }
+    body { margin: 0; background:#1a1a1a; display:flex; justify-content:center; align-items:center; color:#eee; font-family:"Courier New", monospace; }
+    canvas { background:#0b0b0b; display:block; border:2px solid #2a2a2a; box-shadow:0 0 24px rgba(0,0,0,.6) inset; z-index:1; pointer-events:auto; touch-action:none; }
+    .btn { font-family:inherit; font-weight:bold; padding:12px 22px; font-size:18px; cursor:pointer; margin:6px; border:2px solid var(--green); background:transparent; color:var(--green); text-shadow:0 0 6px rgba(51,255,102,.5); pointer-events:auto; }
+    .btn:hover { background: rgba(51,255,102,.1); }
+    .btn-accent { border-color: var(--accent); color: var(--accent); text-shadow: 0 0 6px rgba(255,61,172,.6); }
+    #topBar { position:fixed; top:8px; left:8px; right:8px; display:flex; gap:8px; align-items:center; justify-content:space-between; z-index:40; font-size:14px; pointer-events:auto; }
+    #userInfo { cursor:pointer; pointer-events:auto; }
+    #homeOverlay { position:fixed; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+      background: repeating-linear-gradient(0deg,transparent 0px, transparent 2px, var(--scanline) 3px, transparent 4px), radial-gradient(circle at 50% 20%, rgba(255,61,172,.12), transparent 40%), #050505;
+      text-align:center; overflow:hidden; z-index:999; pointer-events:auto; }
+    .retro-box { border:3px solid var(--green); box-shadow:0 0 24px rgba(51,255,102,.25), inset 0 0 12px rgba(51,255,102,.1); padding:22px 28px; background:#0c0c0c; }
+    .corner { position:absolute; top:16px; right:16px; display:flex; gap:8px; pointer-events:auto; }
+    .overlay { position:fixed; inset:0; background:rgba(0,0,0,.8); display:none; align-items:center; justify-content:center; z-index:70; pointer-events:auto; }
+    .modal { width:560px; max-width:92vw; max-height:75vh; overflow:auto; background:#121212; border:2px solid var(--green); box-shadow:0 0 20px rgba(51,255,102,.3); border-radius:8px; padding:16px; }
+    #errBanner { position:fixed; bottom:8px; left:8px; right:8px; background:#0e0e0e; color:#e3ffee; padding:8px 10px; border:1px solid #2dd562; border-radius:6px; font-size:12px; z-index:1000; display:block; white-space:pre-wrap; }
+    #restartBtn { display:none; position:fixed; top:8px; left:50%; transform:translateX(-50%); z-index:50; pointer-events:auto; }
+    #cheatBar { position:fixed; bottom:60px; left:50%; transform:translateX(-50%); display:none; gap:8px; z-index:90; background:#0e0e0e; padding:8px 10px; border:1px solid #2a2a2a; border-radius:6px; }
+    #cheatInput { padding:8px; font-size:14px; border:1px solid #3a3a3a; background:#0b0b0b; color:#fff; }
+    #cheatTableBubble { position:fixed; bottom:120px; left:50%; transform:translateX(-50%); z-index:95; display:none;
+      max-width:90vw; background:#0b0b0b; border:1px solid #2a2a2a; border-radius:8px; padding:8px 10px; font-size:12px; color:#cfe; }
+    #cheatTableBubble th, #cheatTableBubble td { border:1px solid #333; padding:4px 6px; text-align:left; }
+    #cheatTableBubble .close { float:right; cursor:pointer; opacity:.8; }
+  </style>
+</head>
+<body>
+  <div id="topBar">
+    <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+      <div id="userInfo" title="Tap while playing to open cheat bar">User: (not set)</div>
+      <div id="highInfo">High: 0</div>
+      <div id="netInfo"></div>
+    </div>
+    <div>
+      <button id="backHomeBtn" class="btn" type="button" style="display:none;">⮐ Back to Home</button>
+      <span id="verBadge" style="font-size:11px;opacity:.7;">build: owner-cheats-v9</span>
+    </div>
+  </div>
+
+  <canvas id="gameCanvas" width="400" height="600" tabindex="0" aria-label="Game canvas"></canvas>
+
+  <div id="homeOverlay">
+    <div class="retro-box">
+      <div id="title" style="font-size:48px;color:#33ff66;text-shadow:0 0 8px rgba(51,255,102,.7);">DODGE THE BLOCKS</div>
+      <div id="subtitle" style="margin-bottom:18px;color:#9ad6ad;">made by Ethan Fehler</div>
+      <button id="playBtn" class="btn btn-accent" type="button">▶ PLAY</button>
+      <div class="pressStart" style="color:#ff3dac;">PRESS PLAY TO START</div>
+    </div>
+    <div class="corner">
+      <button id="lbBtn" class="btn" type="button">LEADERBOARD</button>
+      <button id="controlsBtn" class="btn" type="button">CONTROLS</button>
+      <button id="setNameBtn" class="btn" type="button">SET USERNAME</button>
+    </div>
+  </div>
+
+  <div id="lbOverlay" class="overlay">
+    <div class="modal">
+      <button id="lbClose" class="btn" type="button" style="float:right;">Close</button>
+      <h3>Global Leaderboard</h3>
+      <table id="lbTable" style="width:100%;border-collapse:collapse;">
+        <thead><tr><th>#</th><th>User</th><th>Best Score</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="nameOverlay" class="overlay">
+    <div class="modal">
+      <button id="nameCancel" class="btn" type="button" style="float:right;">Close</button>
+      <h3>Set your username</h3>
+      <input id="nameInput" placeholder="e.g., PlayerOne" maxlength="20" autocomplete="off">
+      <div id="nameErr" style="color:#ff6b6b;min-height:1.2em;font-size:12px;"></div>
+      <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:10px;">
+        <button id="nameSave" class="btn btn-accent" type="button">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="controlsOverlay" class="overlay">
+    <div class="modal">
+      <button id="controlsClose" class="btn" type="button" style="float:right;">Close</button>
+      <h3>Keyboard & Touch Controls</h3>
+      <ul style="line-height:1.6; margin:0 0 8px 16px;">
+        <li>← / → — Move left / right (desktop)</li>
+        <li>Drag finger on the canvas — Move the square (mobile)</li>
+        <li>P — Pause / resume (gameplay only)</li>
+        <li>Enter — Confirm username</li>
+        <li>Esc — Close the current dialog</li>
+        <li>E — Toggle error banner</li>
+        <li>Space — Toggle diagnostics HUD (unless typing)</li>
+      </ul>
+    </div>
+  </div>
+
+  <div id="errBanner">⚠ Bootstrap loaded (v9). Click any button — the banner should change.</div>
+
+  <script>
+    (function(){
+      const errEl = document.getElementById('errBanner');
+      function showErr(msg){ errEl.textContent = '⚠ ' + msg; errEl.style.display = 'block'; console.warn(msg); }
+
+      // Global click delegation so even if something overlays, we still catch button intent.
+      document.addEventListener('click', function(e){
+        const btn = e.target.closest('button');
+        if(!btn) return;
+        const id = btn.id;
+        if(id === 'playBtn'){ e.preventDefault(); showErr('OK: PLAY clicked'); }
+        else if(id === 'lbBtn'){ e.preventDefault(); showErr('OK: LEADERBOARD clicked'); }
+        else if(id === 'setNameBtn'){ e.preventDefault(); showErr('OK: SET NAME clicked'); }
+        else if(id === 'controlsBtn'){ e.preventDefault(); document.getElementById('controlsOverlay').style.display='flex'; showErr('OK: CONTROLS open'); }
+        else if(id === 'controlsClose'){ e.preventDefault(); document.getElementById('controlsOverlay').style.display='none'; showErr('OK: CONTROLS closed'); }
+        else if(id === 'lbClose'){ e.preventDefault(); document.getElementById('lbOverlay').style.display='none'; showErr('OK: LEADERBOARD closed'); }
+        else if(id === 'backHomeBtn'){ e.preventDefault(); showErr('OK: BACK HOME clicked'); }
+        else if(id === 'nameSave'){ e.preventDefault(); showErr('OK: NAME SAVE clicked'); }
+        else if(id === 'nameCancel'){ e.preventDefault(); document.getElementById('nameOverlay').style.display='none'; showErr('OK: NAME CLOSE clicked'); }
+      }, {capture:true}); // capture=true to intercept before any problematic listeners
+
+      // Also wire tapping the username area
+      const userInfo = document.getElementById('userInfo');
+      userInfo.addEventListener('click', function(){ showErr('OK: USERINFO clicked'); });
+
+      // E toggles the banner for quick check
+      window.addEventListener('keydown', function(e){
+        if(e.key==='e'||e.key==='E'){ errEl.style.display = (errEl.style.display==='block'?'none':'block'); }
+      });
+
+      // Ensure overlays accept input
+      ['homeOverlay','lbOverlay','nameOverlay','controlsOverlay','topBar'].forEach(id => {
+        const el = document.getElementById(id);
+        if(el){ el.style.pointerEvents = 'auto'; }
+      });
+
+      showErr('Bootstrap OK — now test clicks. If this changes on click, events are good.');
+    })();
+  </script>
+</body>
+</html>
