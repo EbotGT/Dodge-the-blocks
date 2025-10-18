@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Dodge the Blocks — v13.3.8 (Cyber Grid + Galaxy Drift themes)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <style>
+    :root { --green:#33ff66; --accent:#ff3dac; --line:#33ff66; --scanline:rgba(255,255,255,0.06); }
+    html, body { height: 100%; }
+    body { margin: 0; background:#1a1a1a; display:flex; justify-content:center; align-items:center; color:#eee; font-family:"Courier New", monospace; }
+    canvas { background:#0b0b0b; display:block; border:2px solid #2a2a2a; position:relative; box-shadow:0 0 24px rgba(0,0,0,.6) inset; z-index:10; pointer-events:auto; touch-action:none; transition: background 240ms linear; }
+    /* Animated backgrounds per theme */
+    @keyframes neonFlow { 0%{background-position:0 0} 100%{background-position:400px 600px} }
+    .bg-neon { background: radial-gradient(circle at 20% 20%, rgba(57,255,20,.15), transparent 40%), linear-gradient(135deg, #000 0%, #060606 100%); background-size: 200% 200%; animation: neonFlow 12s linear infinite; }
+    @keyframes midnightDrift { 0%{background-position:0 0} 100%{background-position:0 200%} }
+    .bg-midnight { background: radial-gradient(ellipse at 50% 10%, rgba(139,211,255,.12), transparent 45%), linear-gradient(180deg, #0a0f1f 0%, #050912 100%); background-size: 120% 200%; animation: midnightDrift 30s linear infinite; }
+    @keyframes vaporWave { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
+    .bg-vapor { background: linear-gradient(90deg, #1b1026, #311b45, #1b1026); background-size: 200% 200%; animation: vaporWave 18s ease-in-out infinite; }
+    /* Cyber Grid v2: crisp neon grid + scan sweep */
+@keyframes cyberParallaxX { 0%{background-position:0 0, 0 0, 0 0;} 100%{background-position:8px 0, 0 8px, 0 0;} }
+@keyframes cyberScan { 0%{opacity:.04; transform:translateY(-100%);} 100%{opacity:.12; transform:translateY(100%);} }
+.bg-cyber{
+  background:
+    /* vertical lines */
+    repeating-linear-gradient(90deg,
+      rgba(39,255,210,.06) 0px, rgba(39,255,210,.06) 1px,
+      transparent 1px, transparent 16px),
+    /* horizontal lines */
+    repeating-linear-gradient(0deg,
+      rgba(39,255,210,.06) 0px, rgba(39,255,210,.06) 1px,
+      transparent 1px, transparent 16px),
+    /* base */
+    radial-gradient(120% 80% at 50% 20%, rgba(255,79,216,.08), transparent 60%),
+    linear-gradient(180deg, #031b1a 0%, #011111 100%);
+  background-size: 16px 16px, 16px 16px, 100% 100%, 100% 100%;
+  animation: cyberParallaxX 6s linear infinite;
+  position: relative;
+  box-shadow: inset 0 0 30px rgba(39,255,210,.12), 0 0 24px rgba(39,255,210,.08);
+}
+.bg-cyber::after{
+  content:""; position:absolute; inset:0;
+  background: linear-gradient(180deg, transparent 0%, rgba(39,255,210,.18) 50%, transparent 100%);
+  mix-blend-mode: screen; pointer-events:none;
+  animation: cyberScan 2.4s linear infinite;
+}
+    /* Galaxy Drift: starfield parallax-ish shimmer */
+    @keyframes starsDrift { 0% { background-position: 0 0, 0 0, 0 0; } 100% { background-position: -200px 600px, -100px 400px, 0 200px; } }
+    .bg-galaxy {
+      background:
+        radial-gradient(2px 2px at 20% 10%, rgba(255,255,255,.8), transparent 60%),
+        radial-gradient(1.5px 1.5px at 80% 40%, rgba(173,216,230,.9), transparent 60%),
+        radial-gradient(1.8px 1.8px at 50% 80%, rgba(255,255,224,.9), transparent 60%),
+        linear-gradient(180deg, #070914 0%, #0a0d1d 100%);
+      background-repeat: repeat, repeat, repeat, no-repeat;
+      background-size: 400px 600px, 400px 600px, 400px 600px, 100% 100%;
+      animation: starsDrift 30s linear infinite;
+      box-shadow: inset 0 0 40px rgba(0,0,0,.6);
+    }
+
+    .btn { font-family:inherit; font-weight:bold; padding:10px 18px; font-size:16px; cursor:pointer; margin:6px; border:2px solid var(--line); background:transparent; color:var(--green); text-shadow:0 0 6px rgba(51,255,102,.5); pointer-events:auto; transition:box-shadow .15s, background .15s, filter .15s; }
+    .btn:hover { background: color-mix(in oklab, currentColor 22%, transparent); box-shadow:0 0 8px color-mix(in oklab, currentColor 35%, transparent); filter:brightness(1.05); }
+    .btn-accent { color: var(--accent); text-shadow: 0 0 6px color-mix(in oklab, var(--accent) 60%, transparent); }
+    .btn-danger { color:#ff6b6b; text-shadow: 0 0 6px color-mix(in oklab, #ff6b6b 60%, transparent); }
+    .btn.active, .btn[aria-pressed="true"] { background: color-mix(in oklab, currentColor 28%, transparent); box-shadow:0 0 14px color-mix(in oklab, currentColor 60%, transparent), inset 0 0 10px color-mix(in oklab, currentColor 25%, transparent); filter:brightness(1.1); }
+    #topBar { position:fixed; top:8px; left:8px; right:8px; display:flex; gap:12px; align-items:center; justify-content:space-between; z-index:60; font-size:14px; pointer-events:auto; }
+    #userInfo { cursor:pointer; pointer-events:auto; }
+    #homeOverlay { position:fixed; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; padding-top:56px;
+      background: repeating-linear-gradient(0deg,transparent 0px, transparent 2px, var(--scanline) 3px, transparent 4px), radial-gradient(circle at 50% 20%, rgba(255,61,172,.12), transparent 40%), #050505;
+      text-align:center; overflow:hidden; z-index:30; pointer-events:auto; transition: background 200ms linear; }
+    body.no-scanlines #homeOverlay { background: radial-gradient(circle at 50% 20%, rgba(255,61,172,.12), transparent 40%), #050505; }
+    .retro-box { border:3px solid var(--line); box-shadow:0 0 24px rgba(51,255,102,.25), inset 0 0 12px rgba(51,255,102,.1); padding:22px 28px; background:#0c0c0c; }
+    .corner { position:absolute; top:88px; right:16px; display:flex; gap:10px; pointer-events:auto; flex-wrap:wrap; max-width:80vw; justify-content:flex-end; z-index:35; }
+    .overlay { position:fixed; inset:0; background:rgba(0,0,0,.8); display:none; align-items:center; justify-content:center; z-index:80; pointer-events:auto; }
+    .modal { width:720px; max-width:94vw; max-height:80vh; overflow:auto; background:#121212; border:2px solid var(--line); box-shadow:0 0 20px rgba(51,255,102,.3); border-radius:8px; padding:16px; }
+    #errBanner { position:fixed; bottom:8px; left:8px; right:8px; background:#0e0e0e; color:#e3ffee; padding:8px 10px; border:1px solid #2dd562; border-radius:6px; font-size:12px; z-index:100; display:none; white-space:pre-wrap; }
+    #restartBtn { display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); z-index:50; pointer-events:auto; }
+    #cheatBar { position:fixed; bottom:60px; left:50%; transform:translateX(-50%); display:none; gap:8px; z-index:90; background:#0e0e0e; padding:8px 10px; border:1px solid #2a2a2a; border-radius:6px; }
+    #cheatInput { padding:8px; font-size:14px; border:1px solid #3a3a3a; background:#0b0b0b; color:#fff; }
+    #backHomeBtn { display:none; }
+    .role-badge { color:#ff3dac; margin-left:4px; }
+    .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:6px 0; }
+    input[type="checkbox"] { transform: translateY(1px); }
+    input, select { background:#0b0b0b; color:#fff; border:1px solid #3a3a3a; padding:8px; }
+    .section { border:1px solid #2a2a2a; padding:10px; border-radius:8px; margin:10px 0; }
+    .section h4 { margin:0 0 8px 0; color:#9ad6ad; }
+    .hint { font-size:12px; opacity:.8; }
+    /* Themes list */
+    #themesList { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; margin-top:8px; }
+    .themeCard { border:1px solid var(--line); border-radius:8px; padding:10px; cursor:pointer; }
+    .themeCard.locked { opacity:.6; cursor:not-allowed; }
+    .themeSwatch { height:60px; border-radius:6px; margin-bottom:8px; border:1px solid #333; }
+    .themeCard.active { box-shadow:0 0 14px rgba(51,255,102,.6), inset 0 0 10px rgba(51,255,102,.25); }
+  
+/* Galaxy Drift v2: vibrant space fantasy */
+@keyframes starsDriftA { 0% { background-position: 0 0; } 100% { background-position: -300px 900px; } }
+@keyframes starsDriftB { 0% { background-position: 0 0; } 100% { background-position: 200px 600px; } }
+@keyframes starsDriftC { 0% { background-position: 0 0; } 100% { background-position: -120px 480px; } }
+@keyframes auroraWave { 0% { opacity:.05; transform:translateY(0) scaleY(1); } 50% { opacity:.18; transform:translateY(-6px) scaleY(1.06);} 100% { opacity:.05; transform:translateY(0) scaleY(1);} }
+.bg-galaxy2 {
+  background:
+    /* star layer A (big, pink/blue) */
+    radial-gradient(2.2px 2.2px at 12% 18%, rgba(255,145,234,.95), transparent 60%),
+    radial-gradient(2.2px 2.2px at 78% 34%, rgba(144,202,249,.95), transparent 60%),
+    radial-gradient(2.2px 2.2px at 52% 82%, rgba(255,255,255,.95), transparent 60%),
+    /* star layer B (medium, teal/gold) */
+    radial-gradient(1.8px 1.8px at 25% 70%, rgba(80,250,210,.95), transparent 60%),
+    radial-gradient(1.8px 1.8px at 66% 12%, rgba(255,220,130,.95), transparent 60%),
+    /* star layer C (small, dense white) */
+    radial-gradient(1.2px 1.2px at 33% 48%, rgba(255,255,255,.9), transparent 55%),
+    radial-gradient(1.2px 1.2px at 90% 62%, rgba(255,255,255,.8), transparent 55%),
+    radial-gradient(1.2px 1.2px at 8% 88%, rgba(255,255,255,.85), transparent 55%),
+    /* base gradient */
+    linear-gradient(180deg, #0b0f2a 0%, #20124d 45%, #3a0f52 100%);
+  background-repeat: repeat, repeat, repeat, repeat, repeat, repeat, repeat, repeat, no-repeat;
+  background-size: 500px 750px, 500px 750px, 500px 750px,
+                   450px 650px, 450px 650px,
+                   420px 620px, 420px 620px, 420px 620px,
+                   100% 100%;
+  animation:
+    starsDriftA 42s linear infinite,
+    starsDriftA 54s linear infinite,
+    starsDriftA 60s linear infinite,
+    starsDriftB 36s linear infinite,
+    starsDriftB 48s linear infinite,
+    starsDriftC 30s linear infinite,
+    starsDriftC 34s linear infinite,
+    starsDriftC 38s linear infinite;
+  box-shadow: inset 0 0 50px rgba(0,0,0,.7);
+  position: relative;
+}
+/* Aurora overlay (added in draw via canvas bg class; visualized through CSS pseudo-element) */
+.bg-galaxy2::after{
+  content:"";
+  position:absolute; inset:0;
+  background:
+    radial-gradient(60% 18% at 50% 55%, rgba(70,255,210,.08), transparent 70%),
+    radial-gradient(70% 22% at 50% 58%, rgba(255,120,255,.06), transparent 75%);
+  pointer-events:none;
+  animation: auroraWave 9s ease-in-out infinite;
+}
+
+  
+/* Galaxy Drift v3: neon sci‑fi nebula (magenta/cyan/indigo), slow parallax stars, shifting aurora */
+@keyframes g3parallaxA { 0% { background-position: 0 0; } 100% { background-position: -360px 1080px; } }
+@keyframes g3parallaxB { 0% { background-position: 0 0; } 100% { background-position:  240px  720px; } }
+@keyframes g3parallaxC { 0% { background-position: 0 0; } 100% { background-position: -160px  640px; } }
+@keyframes g3Aurora   { 0% { opacity:.06; filter:hue-rotate(0deg); } 50% { opacity:.18; filter:hue-rotate(30deg);} 100% { opacity:.06; filter:hue-rotate(0deg);} }
+.bg-galaxy3 {
+  background:
+    /* large stars (cyan/fuchsia/white) */
+    radial-gradient(2.6px 2.6px at 15% 22%, rgba(115,255,255,.95), transparent 60%),
+    radial-gradient(2.6px 2.6px at 78% 38%, rgba(255,120,220,.95), transparent 60%),
+    radial-gradient(2.6px 2.6px at 55% 80%, rgba(255,255,255,.95), transparent 60%),
+    /* medium stars */
+    radial-gradient(1.8px 1.8px at 28% 72%, rgba(115,255,255,.9), transparent 60%),
+    radial-gradient(1.8px 1.8px at 66% 16%, rgba(255,120,220,.9), transparent 60%),
+    radial-gradient(1.8px 1.8px at 86% 56%, rgba(255,255,255,.85), transparent 60%),
+    /* small dense whites */
+    radial-gradient(1.2px 1.2px at 34% 48%, rgba(255,255,255,.8), transparent 55%),
+    radial-gradient(1.2px 1.2px at 92% 64%, rgba(255,255,255,.75), transparent 55%),
+    radial-gradient(1.2px 1.2px at 10% 88%, rgba(255,255,255,.8), transparent 55%),
+    /* nebula base gradient (magenta/cyan/indigo) */
+    radial-gradient(60% 40% at 30% 30%, rgba(255,80,200,.20), transparent 60%),
+    radial-gradient(50% 35% at 70% 50%, rgba(80,255,255,.18), transparent 60%),
+    linear-gradient(180deg, #1a0b33 0%, #2b0c52 45%, #0f1e4a 100%);
+  background-repeat: repeat, repeat, repeat, repeat, repeat, repeat, repeat, repeat, repeat, no-repeat, no-repeat, no-repeat;
+  background-size: 520px 780px, 520px 780px, 520px 780px,
+                   480px 720px, 480px 720px, 480px 720px,
+                   420px 620px, 420px 620px, 420px 620px,
+                   100% 100%, 100% 100%, 100% 100%;
+  animation:
+    g3parallaxA 46s linear infinite,
+    g3parallaxA 60s linear infinite,
+    g3parallaxA 70s linear infinite,
+    g3parallaxB 38s linear infinite,
+    g3parallaxB 52s linear infinite,
+    g3parallaxC 34s linear infinite,
+    g3parallaxC 40s linear infinite,
+    g3parallaxC 44s linear infinite;
+  position: relative;
+  box-shadow: inset 0 0 55px rgba(0,0,0,.7);
+}
+.bg-galaxy3::after{
+  content:"";
+  position:absolute; inset:0;
+  background:
+    radial-gradient(65% 18% at 50% 58%, rgba(115,255,255,.10), transparent 72%),
+    radial-gradient(70% 22% at 50% 60%, rgba(255,120,220,.08), transparent 76%);
+  mix-blend-mode: screen;
+  pointer-events:none;
+  animation: g3Aurora 10s ease-in-out infinite;
+}
+
+  
+/* App-wide cyber grid for menus when Cyber theme is active */
+@keyframes cyberHomeScan { 0%{background-position:0 0,0 0,0 0;} 100%{background-position:0 12px,12px 0,0 0;} }
+body.cyber-ui #homeOverlay {
+  background:
+    repeating-linear-gradient(0deg, rgba(39,255,210,.06) 0 1px, transparent 1px 12px),
+    repeating-linear-gradient(90deg, rgba(39,255,210,.06) 0 1px, transparent 1px 12px),
+    radial-gradient(60% 30% at 50% 18%, rgba(255,79,216,.10), transparent 65%),
+    #041414;
+  animation: cyberHomeScan 2.2s linear infinite;
+}
+body.cyber-ui .retro-box,
+body.cyber-ui .modal { box-shadow:0 0 24px rgba(39,255,210,.25), inset 0 0 12px rgba(39,255,210,.10); }
+body.cyber-ui .btn { text-shadow:0 0 6px rgba(39,255,210,.5); }
+
+  </style>
+</head>
+<body>
+  <div id="topBar">
+    <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+      <div id="userInfo" title="Tap while playing to open cheat bar">User: (not set)</div>
+      <div id="highInfo">High: 0</div>
+      <div id="netInfo"></div>
+    </div>
+    <div>
+      <button id="backHomeBtn" class="btn" type="button">⮐ Back to Home</button>
+      <span id="verBadge" style="font-size:11px;opacity:.7;">build: v13.3.8</span>
+    </div>
+  </div>
+
+  <canvas id="gameCanvas" width="400" height="600" tabindex="0" aria-label="Game canvas"></canvas>
+
+  <div id="homeOverlay">
+    <div class="retro-box">
+      <div id="title" style="font-size:48px;color:#33ff66;text-shadow:0 0 8px rgba(51,255,102,.7);">DODGE THE BLOCKS</div>
+      <div id="subtitle" style="margin-bottom:18px;color:#9ad6ad;">made by Ethan Fehler</div>
+      <button id="playBtn" class="btn btn-accent" type="button">▶ PLAY</button>
+      <div class="pressStart" style="color:#ff3dac;">PRESS PLAY TO START</div>
+    </div>
+    <div class="corner">
+      <button id="lbBtn" class="btn" type="button">LEADERBOARD</button>
+      <button id="controlsBtn" class="btn" type="button">CONTROLS</button>
+      <button id="setNameBtn" class="btn" type="button">SET USERNAME</button>
+      <button id="themesBtn" class="btn" type="button">THEMES</button>
+      <button id="settingsBtn" class="btn" type="button">SETTINGS</button>
+      <button id="ownerMenuBtn" class="btn" type="button" style="display:none;">OWNER MOD MENU</button>
+    </div>
+  </div>
+
+  <div id="lbOverlay" class="overlay">
+    <div class="modal">
+      <button id="lbClose" class="btn" type="button" style="float:right;">Close</button>
+      <h3>Global Leaderboard</h3>
+      <div id="lbStatus" style="font-size:12px;opacity:.8;margin-bottom:6px;"></div>
+      <table id="lbTable" style="width:100%;border-collapse:collapse;">
+        <thead><tr><th>#</th><th>User</th><th>Best Score</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="nameOverlay" class="overlay">
+    <div class="modal">
+      <button id="nameCancel" class="btn" type="button" style="float:right;">Close</button>
+      <h3>Set your username</h3>
+      <input id="nameInput" placeholder="e.g., Ethan Fehler" maxlength="20" autocomplete="off">
+      <div id="nameErr" style="color:#ff6b6b;min-height:1.2em;font-size:12px;"></div>
+      <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:10px;">
+        <button id="nameSave" class="btn btn-accent" type="button">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="controlsOverlay" class="overlay">
+    <div class="modal">
+      <button id="controlsClose" class="btn" type="button" style="float:right;">Close</button>
+      <h3>Keyboard & Touch Controls</h3>
+      <ul style="line-height:1.6; margin:0 0 8px 16px;">
+        <li>← / → — Move left / right (desktop)</li>
+        <li>Drag finger on the canvas — Move the square (mobile)</li>
+        <li>P — Pause / resume (gameplay only)</li>
+        <li>Enter — Confirm username</li>
+        <li>Esc — Close the current dialog</li>
+        <li>E — Toggle error banner</li>
+      </ul>
+    </div>
+  </div>
+
+  <div id="settingsOverlay" class="overlay">
+    <div class="modal">
+      <button id="settingsClose" class="btn" type="button" style="float:right;">Close</button>
+      <h3>Settings</h3>
+      <div class="section">
+        <h4>Audio</h4>
+        <div class="row">
+          <label><input type="checkbox" id="setAudio"> Ambient theme audio</label>
+        </div>
+      </div>
+      <div class="section">
+        <h4>Visuals</h4>
+        <div class="row">
+          <label><input type="checkbox" id="setAnimBg"> Animated theme backgrounds</label>
+        </div>
+        <div class="row">
+          <label><input type="checkbox" id="setScan"> Scanlines on Home</label>
+        </div>
+      </div>
+      <div class="section">
+        <h4>UI</h4>
+        <div class="row">
+          <label><input type="checkbox" id="setErrBtn"> Show floating Errors button during play</label>
+        </div>
+      </div>
+      <div class="hint">Settings are saved on this device (localStorage) and do not affect cheats or the Owner Mod Menu.</div>
+    </div>
+  </div>
+
+  <div id="ownerOverlay" class="overlay">
+    <div class="modal" id="ownerModal">
+      <button id="ownerClose" class="btn" type="button" style="float:right;">Close</button>
+      <h3>Owner Mod Menu</h3>
+      <div class="hint">Owner-only controls. PIN is required for role changes.</div>
+
+      <div class="section">
+        <h4>Quick Toggles</h4>
+        <div class="row" id="ownerToggles">
+          <button class="btn" data-ot="godmode" aria-pressed="false">Godmode</button>
+          <button class="btn" data-ot="rainbow" aria-pressed="false">Rainbow</button>
+          <button class="btn" data-ot="ghost" aria-pressed="false">Ghost</button>
+          <button class="btn" data-ot="reverse" aria-pressed="false">Reverse</button>
+          <button class="btn" data-ot="speedy" aria-pressed="false">Speedy</button>
+          <button class="btn" data-ot="bigplayer" aria-pressed="false">Big</button>
+          <button class="btn" data-ot="tinyplayer" aria-pressed="false">Tiny</button>
+          <button class="btn" id="otResetSize">Reset Size</button>
+          <button class="btn" id="otDefaults">Set All to Default</button>
+        </div>
+      </div>
+
+      <div class="section">
+        <h4>Score Tools</h4>
+        <div class="row" id="ownerScores">
+          <button class="btn" id="setBestCurrent">Set Best = Current</button>
+          <button class="btn" data-score="+1000">+1,000</button>
+          <button class="btn" data-score="+10000">+10,000</button>
+        </div>
+        <div class="row">
+          <input id="bestX" placeholder="Best = X" style="width:140px;">
+          <button class="btn" id="setBestX">Apply</button>
+        </div>
+      </div>
+
+      <div class="section">
+        <h4>Speed & Spawn</h4>
+        <div class="row">
+          <label>Obstacle Speed</label>
+          <input type="range" id="speedRange" min="0" max="40" value="4" step="1">
+          <span id="speedLabel">4</span>
+        </div>
+        <div class="row">
+          <label>Spawn Interval (ms)</label>
+          <input type="range" id="spawnRange" min="50" max="1500" value="500" step="10">
+          <span id="spawnLabel">500</span>
+        </div>
+        <div class="row" id="ownerSpeedBtns">
+          <button class="btn" data-slow="1">Slowmo 1</button>
+          <button class="btn" data-slow="2">Slowmo 2</button>
+          <button class="btn" data-slow="4">Slowmo 4</button>
+          <button class="btn" data-slow="8">Slowmo 8</button>
+          <button class="btn" data-fast="50">Fastspawn 50</button>
+          <button class="btn" data-fast="100">Fastspawn 100</button>
+          <button class="btn" data-fast="200">Fastspawn 200</button>
+        </div>
+      </div>
+
+      <div class="section">
+        <h4>Set My Leaderboard Position</h4>
+        <div class="row">
+          <input id="desiredRank" type="number" min="1" step="1" placeholder="Rank (1 = top)" style="width:160px;">
+          <button class="btn btn-accent" id="applyDesiredRank">Place Me</button>
+        </div>
+        <div class="hint">We read the current leaderboard and set your <b>best</b> to one point below the person above you.<br>
+        Example: if you pick rank 3 and #2 has 12,345, your best becomes 12,344.</div>
+        <div id="rankMsg" class="hint"></div>
+      </div>
+
+      <div class="section">
+        <h4>Roles</h4>
+        <div class="row">
+          <input id="targetUser" placeholder="username" style="width:160px;">
+          <select id="targetRole">
+            <option value="player">player</option>
+            <option value="mod">mod</option>
+            <option value="owner">owner</option>
+          </select>
+          <input id="customRole" placeholder="custom role (optional)" style="width:180px;">
+          <input id="ownerPIN" type="password" placeholder="Owner PIN">
+          <button class="btn btn-accent" id="applyRole">Apply Role</button>
+        </div>
+        <div id="pinMsg" class="hint"></div>
+        <div class="row">
+          <input id="removeUser" placeholder="username" style="width:160px;">
+          <input id="removePIN" type="password" placeholder="Owner PIN">
+          <button class="btn btn-danger" id="removeRoleBtn">Remove Role</button>
+        </div>
+        <div id="removeMsg" class="hint"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="themesOverlay" class="overlay">
+    <div class="modal">
+      <button id="themesClose" class="btn" type="button" style="float:right;">Close</button>
+      <h3>Unlockable Themes</h3>
+      <div class="hint">Unlocks: Neon ≥ 500, Midnight ≥ 2000, Vaporwave ≥ 5000, Cyber Grid ≥ 8000, Galaxy Drift ≥ 12000</div>
+      <div id="themesList"></div>
+    </div>
+  </div>
+
+  <div id="cheatBar"><input type="password" id="cheatInput" placeholder="Enter cheat code"><button id="applyCheat" class="btn" type="button">Apply</button></div>
+  <button id="restartBtn" class="btn" type="button">Restart</button>
+
+  <div id="errBanner"></div>
+  <button id="errToggleFloat" class="btn" type="button" style="position:fixed; right:10px; bottom:10px; z-index:95; display:none;">Errors</button>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.43.1/dist/umd/supabase.js"></script>
+  <script>
+    const SUPABASE_URL = "https://staohtadlbeextexepdz.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN0YW9odGFkbGJlZXh0ZXhlcGR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2MjAwNTIsImV4cCI6MjA3MDE5NjA1Mn0.OLQ3GIM4JV8oajuczviBsM-ueoJWV6ro65NIjpjYq0U";
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  </script>
+
+  <script>
+  (function(){
+    const OWNER_USERNAMES = new Set(["Ethan Fehler"]);
+    const PROTECTED_NAMES = new Set(["Ethan Fehler"]);
+
+    const errEl = document.getElementById('errBanner');
+    function showErr(msg){ errEl.textContent = '⚠ ' + msg; errEl.style.display = 'block'; console.warn(msg); }
+    function hideErr(){ errEl.style.display='none'; }
+    window.onerror = function(m, s, l, c){ showErr('JS_ERROR: '+m+' @'+l+':'+c); };
+    window.onunhandledrejection = function(ev){ showErr('PROMISE_REJECTION: '+(ev&&ev.reason&&ev.reason.message||ev&&ev.reason||'unknown')); };
+
+    const $ = (id)=>document.getElementById(id);
+    const userInfo=$('userInfo'), highInfo=$('highInfo'), netInfo=$('netInfo');
+    const homeOverlay=$('homeOverlay'), controlsOverlay=$('controlsOverlay');
+    const lbOverlay=$('lbOverlay'), nameOverlay=$('nameOverlay');
+    const ownerOverlay=$('ownerOverlay'), ownerModal=$('ownerModal');
+    const settingsOverlay=$('settingsOverlay');
+    const nameInput=$('nameInput'), nameErr=$('nameErr');
+    const canvas=$('gameCanvas'), ctx=canvas.getContext('2d');
+    const restartBtn=$('restartBtn'), backHomeBtn=$('backHomeBtn');
+    const cheatBar=$('cheatBar'), cheatInput=$('cheatInput');
+    const lbStatus=$('lbStatus');
+    const ownerMenuBtn=$('ownerMenuBtn');
+    const errToggleBtn=$('errToggleFloat');
+    const themesOverlay = $('themesOverlay');
+    const themesList = $('themesList');
+
+    // ---- Name modal helpers ----
+    function openNameModal(prefill=''){ nameOverlay.style.display='flex'; nameInput.value=prefill; nameErr.textContent=''; setTimeout(()=>{ try{nameInput.focus();}catch{} },0); }
+    function closeNameModal(){ nameOverlay.style.display='none'; }
+    window.openNameModal=openNameModal; window.closeNameModal=closeNameModal;
+
+    // SETTINGS (persisted)
+    const DEFAULT_SETTINGS = { audio:true, animBg:true, scanlines:true, showErrBtn:true };
+    function loadSettings(){ try{ return {...DEFAULT_SETTINGS, ...(JSON.parse(localStorage.getItem('dodge_settings')||'{}'))}; }catch{return {...DEFAULT_SETTINGS};} }
+    function saveSettings(s){ localStorage.setItem('dodge_settings', JSON.stringify(s)); }
+    let settings = loadSettings();
+    function syncSettingsUI(){
+      const a=$('setAudio'), b=$('setAnimBg'), c=$('setScan'), d=$('setErrBtn');
+      if(a) a.checked = !!settings.audio;
+      if(b) b.checked = !!settings.animBg;
+      if(c) c.checked = !!settings.scanlines;
+      if(d) d.checked = !!settings.showErrBtn;
+      document.body.classList.toggle('no-scanlines', !settings.scanlines);
+    }
+
+    const loadScoresLocal=()=>{ try{return JSON.parse(localStorage.getItem('dodge_scores')||'{}');}catch{return{};} };
+    const saveScoresLocal=o=> localStorage.setItem('dodge_scores', JSON.stringify(o));
+    const getUser=()=> (localStorage.getItem('dodge_user')||'').trim();
+    const setUser=u=> localStorage.setItem('dodge_user', u);
+
+    // THEME SYSTEM (added Cyber Grid & Galaxy Drift)
+    const THEMES = {
+      default:{ key:'default', name:'Default', req:0, bgClass:'', bg:'#0b0b0b', player:'#39ff14', obstacle:'#ff3333', accent:'#33ff66', hud:'#ffffff', hud2:'#ffcc00', audio:'none', outline1:'#33ff66', outline2:'#ffffff' },
+      neon:{ key:'neon', name:'Neon', req:500, bgClass:'bg-neon', bg:'#000000', player:'#39ff14', obstacle:'#ff007f', accent:'#39ff14', hud:'#aaffc3', hud2:'#ffd166', audio:'hum', outline1:'#39ff14', outline2:'#ff007f' },
+      midnight:{ key:'midnight', name:'Midnight', req:2000, bgClass:'bg-midnight', bg:'#0a0f1f', player:'#8bd3ff', obstacle:'#ff6b6b', accent:'#8bd3ff', hud:'#cfeaff', hud2:'#ffd166', audio:'space', outline1:'#8bd3ff', outline2:'#ff6b6b' },
+      vapor:{ key:'vapor', name:'Vaporwave', req:5000, bgClass:'bg-vapor', bg:'#1b1026', player:'#ffd1dc', obstacle:'#8ef9f3', accent:'#ff77e9', hud:'#ffe6f2', hud2:'#fff08a', audio:'pad', outline1:'#ff77e9', outline2:'#8ef9f3' },
+      cyber:{ key:'cyber', name:'Cyber Grid', req:8000, bgClass:'bg-cyber', bg:'#051113', player:'#38e8ff', obstacle:'#ff4fd8', accent:'#27ffd2', accent2:'#ff4fd8', hud:'#c9f9ff', hud2:'#7cfbff', audio:'hum', outline1:'#27ffd2', outline2:'#ff4fd8', line:'#27ffd2' },
+      galaxy:{ key:'galaxy', name:'Galaxy Drift', req:12000, bgClass:'bg-galaxy3', bg:'#1a0b33', player:'#e6ffff', obstacle:'#ff4fb7', accent:'#7cfbff', accent2:'#ff79d1', hud:'#ffffff', hud2:'#7cfbff', audio:'pad', outline1:'#7cfbff', outline2:'#ff4fb7', line:'#7cfbff' }
+    };
+    function getBest(u){ const localBest=(loadScoresLocal()[u]||0); return localBest; }
+    let currentThemeKey = localStorage.getItem('dodge_theme') || 'default';
+    let currentRole='player', isOwner=false;
+
+    function applyTheme(key){
+  const t = THEMES[key] || THEMES.default;
+  currentThemeKey = t.key;
+  localStorage.setItem('dodge_theme', currentThemeKey);
+  canvas.classList.remove('bg-neon','bg-midnight','bg-vapor','bg-cyber','bg-galaxy','bg-galaxy2','bg-galaxy3');
+  if(settings.animBg && t.bgClass){ canvas.classList.add(t.bgClass); }
+  canvas.style.background = t.bg;
+  document.documentElement.style.setProperty('--green', t.accent || '#33ff66');
+  // Theme outline (border + neon glow)
+  const o1 = t.outline1 || t.accent || '#33ff66';
+  const o2 = t.outline2 || '#ffffff';
+  canvas.style.borderColor = o1;
+  canvas.style.boxShadow =
+    `0 0 10px ${o1}55, 0 0 22px ${o1}40, 0 0 36px ${o2}26, inset 0 0 24px #00000066`;
+}
+
+    function renderThemes(){
+      const u = getUser();
+      const best = u ? getBest(u) : 0;
+      const activeKey = currentThemeKey;
+      themesList.innerHTML = '';
+      Object.values(THEMES).forEach(t=>{
+        const unlocked = isOwner || best >= t.req || t.req===0;
+        const card = document.createElement('div');
+        card.className = 'themeCard' + (unlocked?'':' locked') + (t.key===activeKey?' active':'');
+        card.dataset.act = unlocked ? 'themeSelect' : '';
+        card.dataset.key = t.key;
+        card.innerHTML = `
+          <div class="themeSwatch" style="background:${t.bg};"></div>
+          <div style="font-weight:bold">${t.name}</div>
+          <div class="hint">${unlocked ? (t.key===activeKey?'Active':'Unlocked') : 'Requires '+t.req}</div>
+        `;
+        themesList.appendChild(card);
+      });
+    }
+
+    async function ensureProfile(u){
+      if(!u) return { role:'player' };
+      await supabase.from('profiles').upsert({ username:u }).select().maybeSingle();
+      const { data } = await supabase.from('profiles').select('role').eq('username', u).maybeSingle();
+      return { role: data?.role || 'player' };
+    }
+    function renderUserInfoBadge(u, role){
+      const tag = role && role!=='player' ? ` <span class="role-badge">[${role}]</span>` : '';
+      userInfo.innerHTML = 'User: ' + (u || '(not set)') + tag;
+      const showOwner = role==='owner' || OWNER_USERNAMES.has(u);
+      document.getElementById('ownerMenuBtn').style.display = showOwner ? 'inline-block' : 'none';
+      isOwner = showOwner;
+    }
+    async function refreshUserRoleUI(){
+      const u=getUser();
+      const { role } = await ensureProfile(u);
+      currentRole = role || (OWNER_USERNAMES.has(u) ? 'owner' : 'player');
+      renderUserInfoBadge(u, currentRole);
+      return currentRole;
+    }
+
+    const player={x:180,y:550,width:40,height:40,speed:24,color:'#39ff14'};
+    let obstacles=[], baseObstacleSpeed=4, obstacleSpeed=baseObstacleSpeed;
+    let score=0, gameOver=false, baseSpawnInterval=500, spawnInterval=baseSpawnInterval;
+    let spawnTimer=null, paused=true, speedIncreaseTimer=null, maxObstacleSpeed=12;
+    let keys={left:false,right:false}; let screen='home', lbOpen=false;
+
+    const cheats={ godmode:false, reverse:false, rainbow:false, ghost:false, speedy:false, bigplayer:false, tinyplayer:false, slowmo:null, slowtime:null, fastspawn:null };
+    const ownerPresetCheats = { godmode:false, reverse:false, rainbow:false, ghost:false, speedy:false, bigplayer:false, tinyplayer:false, slowmo:null, slowtime:null, fastspawn:null };
+
+    // Ambient audio per theme
+    let audioCtx=null, masterGain=null, aTimer=null;
+    function startAmbient(){
+      if(!settings.audio) return;
+      const t = THEMES[currentThemeKey] || THEMES.default;
+      if(t.audio==='none') return;
+      try{
+        if(!audioCtx){ audioCtx = new (window.AudioContext||window.webkitAudioContext)(); }
+        if(masterGain){ masterGain.disconnect(); masterGain = null; }
+        masterGain = audioCtx.createGain();
+        masterGain.gain.value = 0.015;
+        masterGain.connect(audioCtx.destination);
+        if(aTimer){ clearInterval(aTimer); aTimer=null; }
+        if(t.audio==='hum'){
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = 'sawtooth'; osc.frequency.value = 80;
+          gain.gain.value = 0.02;
+          osc.connect(gain).connect(masterGain);
+          osc.start();
+          aTimer = setInterval(()=>{ osc.frequency.value = 70 + Math.random()*20; }, 800);
+          masterGain._nodes = [osc,gain];
+        } else if(t.audio==='space'){
+          const o1 = audioCtx.createOscillator(), o2 = audioCtx.createOscillator();
+          const g = audioCtx.createGain(); o1.type='sine'; o2.type='sine';
+          o1.frequency.value = 220; o2.frequency.value = 222;
+          g.gain.value = 0.01; o1.connect(g); o2.connect(g); g.connect(masterGain);
+          o1.start(); o2.start();
+          aTimer = setInterval(()=>{ o2.frequency.value = 221 + Math.random()*3; }, 1500);
+          masterGain._nodes = [o1,o2,g];
+        } else if(t.audio==='pad'){
+          const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+          o.type='triangle'; o.frequency.value = 440;
+          g.gain.value = 0.008; o.connect(g).connect(masterGain);
+          o.start();
+          aTimer = setInterval(()=>{ o.frequency.value = 430 + Math.sin(Date.now()/1500)*15; }, 200);
+          masterGain._nodes = [o,g];
+        }
+      }catch(e){ /* ignore */ }
+    }
+    function stopAmbient(){
+      try{
+        if(aTimer){ clearInterval(aTimer); aTimer=null; }
+        if(masterGain && masterGain._nodes){
+          masterGain._nodes.forEach(n=>{ try{ if(n.stop) n.stop(); if(n.disconnect) n.disconnect(); }catch{} });
+          masterGain._nodes = [];
+        }
+        if(masterGain){ try{ masterGain.disconnect(); }catch{} masterGain=null; }
+      }catch(e){}
+    }
+
+    function curTheme(){ return THEMES[currentThemeKey] || THEMES.default; }
+    function spawnObstacle(){
+      if(!paused && !gameOver){
+        const w=Math.random()*60+20, x=Math.random()*(canvas.width-w);
+        obstacles.push({x, y: cheats.reverse? canvas.height+20 : -20, width:w, height:20, color: curTheme().obstacle});
+      }
+    }
+    function startSpawning(){ clearInterval(spawnTimer); spawnTimer=setInterval(spawnObstacle, spawnInterval); }
+    function startSpeedIncrease(){ clearInterval(speedIncreaseTimer); speedIncreaseTimer=setInterval(()=>{ if(!paused && !gameOver && baseObstacleSpeed<maxObstacleSpeed){ baseObstacleSpeed+=0.5; refreshEffectiveSpeeds(); } },10000); }
+    function refreshEffectiveSpeeds(){
+      if (cheats.slowmo != null) obstacleSpeed = Number(cheats.slowmo);
+      else if (cheats.slowtime != null) obstacleSpeed = Number(cheats.slowtime);
+      else obstacleSpeed = baseObstacleSpeed;
+      let newSpawn = baseSpawnInterval;
+      if (cheats.fastspawn != null) newSpawn = Number(cheats.fastspawn);
+      else if (cheats.slowtime != null) newSpawn = 1500;
+      if (newSpawn !== spawnInterval){ spawnInterval = newSpawn; startSpawning(); }
+      updateOwnerMenuUI();
+    }
+    function update(){
+      if(gameOver||paused||screen!=='playing') return;
+      if(keys.left) player.x-=player.speed;
+      if(keys.right) player.x+=player.speed;
+      if(player.x<0) player.x=0;
+      if(player.x+player.width>canvas.width) player.x=canvas.width-player.width;
+      obstacles.forEach(o=> o.y += (cheats.reverse? -obstacleSpeed : obstacleSpeed));
+      obstacles = obstacles.filter(o=> o.y<canvas.height+40 && o.y>-40);
+      if(!cheats.godmode){
+        for(const o of obstacles){
+          if(player.x < o.x + o.width && player.x + player.width > o.x && player.y < o.y + o.height && player.y + player.height > o.y){
+            onDeath(); break;
+          }
+        }
+      }
+      score += (cheats.reverse ? -1 : 1);
+      if(cheats.rainbow){
+        player.color = `hsl(${(Date.now()/10)%360},100%,50%)`;
+        obstacles.forEach((o,i)=> o.color = `hsl(${(Date.now()/10 + i*20)%360},100%,50%)`);
+      } else {
+        player.color = cheats.ghost ? 'rgba(0,0,0,0)' : curTheme().player;
+      }
+    }
+    function draw(){
+      const t = curTheme();
+      canvas.classList.remove('bg-neon','bg-midnight','bg-vapor','bg-cyber','bg-galaxy');
+      if(settings.animBg && t.bgClass){ canvas.classList.add(t.bgClass); }
+      canvas.style.background = t.bg;
+
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      if(currentThemeKey==='galaxy'){ ctx.save(); ctx.shadowColor='rgba(124,251,255,.7)'; ctx.shadowBlur=12; } ctx.fillStyle=player.color; ctx.fillRect(player.x,player.y,player.width,player.height); if(currentThemeKey==='galaxy'){ ctx.restore(); }
+      obstacles.forEach(o=>{ if(currentThemeKey==='galaxy'){ ctx.save(); ctx.shadowColor='rgba(255,79,183,.65)'; ctx.shadowBlur=14; } ctx.fillStyle=o.color; ctx.fillRect(o.x,o.y,o.width,o.height); if(currentThemeKey==='galaxy'){ ctx.restore(); } });
+      ctx.save(); ctx.shadowColor = t.hud2; ctx.shadowBlur = 8; ctx.fillStyle=t.hud; ctx.font='20px Arial'; ctx.fillText('Score: '+score,10,30); ctx.restore();
+      const active = Object.entries(cheats).filter(([k,v]) => v === true || v === 0 || (typeof v === 'number')).map(([k,v]) => typeof v === 'number' ? `${k}(${v})` : k);
+      if(active.length){
+        ctx.font = '14px Arial'; ctx.textAlign = 'right'; ctx.textBaseline='top';
+        active.forEach((label, i) => { ctx.fillStyle = label.startsWith('rainbow') ? `hsl(${(Date.now()/10)%360},100%,50%)` : t.hud; ctx.fillText(label, canvas.width-8, 8+i*16); });
+        ctx.textAlign='left'; ctx.textBaseline='alphabetic';
+      }
+      if(gameOver){ ctx.fillStyle= t.hud2; ctx.font='40px Arial'; ctx.fillText('GAME OVER',80,canvas.height/2); }
+      if(paused || screen!=='playing'){ ctx.fillStyle=t.hud2; ctx.font='30px Arial'; ctx.fillText('PAUSED',150,canvas.height/2); }
+    }
+    (function loop(){ update(); draw(); requestAnimationFrame(loop); })();
+
+    function goHome(){ screen='home'; paused=true; gameOver=false; homeOverlay.style.display='flex'; backHomeBtn.style.display='none'; restartBtn.style.display='none'; errToggleBtn.style.display = settings.showErrBtn ? 'inline-block' : 'none'; clearInterval(spawnTimer); clearInterval(speedIncreaseTimer); document.body.style.overflow='auto'; stopAmbient(); }
+    function startPlaying(){
+      if(!getUser()){ openNameModal(''); return; }
+      screen='playing'; paused=false; gameOver=false; score=0; obstacles=[];
+      applyTheme(currentThemeKey);
+      for (const k in ownerPresetCheats) { cheats[k] = ownerPresetCheats[k]; }
+      player.speed = cheats.speedy ? 35 : 24;
+      if (cheats.bigplayer) { player.width=80; player.height=80; }
+      else if (cheats.tinyplayer) { player.width=20; player.height=20; }
+      else { player.width=40; player.height=40; }
+      baseObstacleSpeed=4; obstacleSpeed=baseObstacleSpeed; baseSpawnInterval=500; spawnInterval=baseSpawnInterval;
+      homeOverlay.style.display='none'; backHomeBtn.style.display='inline-block'; restartBtn.style.display='none'; errToggleBtn.style.display = settings.showErrBtn ? 'inline-block' : 'none';
+      startSpawning(); startSpeedIncrease(); refreshEffectiveSpeeds();
+      document.body.style.overflow='hidden'; canvas.focus();
+      hideErr();
+      updateOwnerMenuUI();
+      startAmbient();
+    }
+    window.goHome=goHome; window.startPlaying=startPlaying;
+
+    function onDeath(){
+      if(gameOver) return;
+      gameOver=true; clearInterval(spawnTimer); clearInterval(speedIncreaseTimer);
+      const u=getUser(); if(u) saveBestLocal(u,score);
+      restartBtn.style.display='inline-block';
+      try{ submitScore(u, score); }catch{}
+      showErr('E_DEAD: Hit a block — press Restart');
+      stopAmbient();
+    }
+
+    async function submitScore(u, s){
+      if(!u){ updateUserUI(); return; }
+      const scores = loadScoresLocal(); scores[u] = Math.max(scores[u]||0, s); saveScoresLocal(scores);
+      const { data, error } = await supabase.from('scores').select('best').eq('username', u).maybeSingle();
+      const remoteBest = error ? 0 : (data?.best || 0);
+      const newBest = Math.max(remoteBest, s);
+      if(newBest > remoteBest){
+        await supabase.from('scores').upsert({ username: u, best: newBest }).select('best').maybeSingle();
+      }
+      await updateUserUI();
+      if (lbOverlay.style.display === 'flex') { await openLeaderboard(); }
+    }
+
+    async function openLeaderboard(){
+      const tbody = document.querySelector('#lbTable tbody');
+      lbStatus.textContent = '';
+      tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;opacity:.8;">Loading…</td></tr>';
+      const rowsRes = await supabase.from('scores').select('username,best').order('best', { ascending:false }).limit(50);
+      if(rowsRes.error){ tbody.innerHTML = `<tr><td colspan="3" style="text-align:center;opacity:.8;">Load error: ${rowsRes.error.message}</td></tr>`; lbOverlay.style.display='flex'; lbOpen=true; return; }
+      const rows = rowsRes.data||[];
+      if(!rows.length){ tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;opacity:.8;">No scores yet</td></tr>'; lbOverlay.style.display='flex'; lbOpen=true; return; }
+      const names = rows.map(r=>r.username);
+      const profsRes = await supabase.from('profiles').select('username,role').in('username', names);
+      if(profsRes.error){ lbStatus.textContent = 'Profiles read limited: ' + profsRes.error.message; }
+      const roleMap = new Map((profsRes.data||[]).map(p=>[p.username,p.role]));
+      tbody.innerHTML = rows.map((r,i)=>{ 
+        const role = roleMap.get(r.username);
+        const badge = role && role!=='player' ? ` <span class="role-badge">[${role}]</span>` : '';
+        return `<tr><td>${i+1}</td><td>${r.username}${badge}</td><td>${r.best}</td></tr>`;
+      }).join('');
+      lbOverlay.style.display='flex'; lbOpen=true;
+    }
+    function closeLeaderboard(){ lbOverlay.style.display='none'; lbOpen=false; }
+    window.openLeaderboard=openLeaderboard; window.closeLeaderboard=closeLeaderboard;
+
+    function openSettings(){ settingsOverlay.style.display='flex'; syncSettingsUI(); }
+    function closeSettings(){ settingsOverlay.style.display='none'; }
+    window.openSettings=openSettings; window.closeSettings=closeSettings;
+
+    function showCheatBar(){ if(screen!=='playing') return; paused=true; cheatBar.style.display='flex'; setTimeout(()=>{ try{cheatInput.focus();}catch{} },0); stopAmbient(); }
+    function closeCheatBar(){ cheatBar.style.display='none'; cheatInput.value=''; if(screen==='playing'&&!gameOver){ paused=false; startAmbient(); } }
+    async function applyCheatCode(){
+      const raw=(cheatInput.value||'').trim().toLowerCase(); if(!raw){ closeCheatBar(); return; }
+      if(raw.startsWith('disable ')){
+        const d=raw.slice(8).trim();
+        if(d==='godmode') ownerPresetCheats.godmode=cheats.godmode=false;
+        if(d==='reverse') ownerPresetCheats.reverse=cheats.reverse=false;
+        if(d==='rainbow') ownerPresetCheats.rainbow=cheats.rainbow=false;
+        if(d==='ghost') ownerPresetCheats.ghost=cheats.ghost=false;
+        if(d==='speedy'){ ownerPresetCheats.speedy=cheats.speedy=false; player.speed=24; }
+        if(d==='bigplayer' || d==='tinyplayer'){ ownerPresetCheats.bigplayer=false; ownerPresetCheats.tinyplayer=false; cheats.bigplayer=false; cheats.tinyplayer=false; player.width=40; player.height=40; }
+        if(d==='slowmo'){ ownerPresetCheats.slowmo=cheats.slowmo=null; }
+        if(d==='slowtime'){ ownerPresetCheats.slowtime=cheats.slowtime=null; }
+        if(d==='fastspawn'){ ownerPresetCheats.fastspawn=cheats.fastspawn=null; }
+        refreshEffectiveSpeeds(); updateOwnerMenuUI(); closeCheatBar(); return;
+      }
+      const m=raw.match(/^([a-z]+)(\d+)?$/); if(!m){ closeCheatBar(); return; }
+      const base=m[1], num=m[2]?parseInt(m[2],10):null;
+      if(base in cheats && typeof cheats[base]==='boolean'){
+        ownerPresetCheats[base]=cheats[base]=true;
+        if(base==='speedy') player.speed=35;
+        if(base==='bigplayer'){ ownerPresetCheats.tinyplayer=false; cheats.tinyplayer=false; player.width=80; player.height=80; }
+        if(base==='tinyplayer'){ ownerPresetCheats.bigplayer=false; cheats.bigplayer=false; player.width=20; player.height=20; }
+      } else if(base==='points'){
+        score += (num!=null?num:1000);
+      } else if(base==='slowmo'){
+        ownerPresetCheats.slowmo = cheats.slowmo = (num!=null?num:1);
+      } else if(base==='slowtime'){
+        ownerPresetCheats.slowtime = cheats.slowtime = (num!=null?num:1);
+      } else if(base==='fastspawn'){
+        ownerPresetCheats.fastspawn = cheats.fastspawn = (num!=null?num:200);
+      } else if(base==='clear'){
+        obstacles = [];
+      }
+      refreshEffectiveSpeeds();
+      updateOwnerMenuUI();
+      closeCheatBar();
+    }
+    window.applyCheatCode=applyCheatCode;
+
+    function updateOwnerMenuUI(){
+      ownerModal.querySelectorAll('[data-ot]').forEach(btn=>{
+        const key = btn.getAttribute('data-ot');
+        const on = !!ownerPresetCheats[key];
+        btn.classList.toggle('active', on);
+        btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+      });
+      const sr = $('speedRange'), sl = $('speedLabel'), spr=$('spawnRange'), spl=$('spawnLabel');
+      if(sr){ sr.value = String(baseObstacleSpeed); if(sl) sl.textContent = String(baseObstacleSpeed); }
+      if(spr){ spr.value = String(baseSpawnInterval); if(spl) spl.textContent = String(baseSpawnInterval); }
+    }
+
+    // ---- CENTRAL DELEGATED CLICK HANDLER ----
+    const actions = {
+      playBtn: ()=> startPlaying(),
+      lbBtn: ()=> openLeaderboard(),
+      lbClose: ()=> closeLeaderboard(),
+      setNameBtn: ()=> openNameModal(getUser()),
+      nameSave: async ()=>{
+        const desired=(nameInput.value||'').trim(); 
+        if(!desired){ nameErr.textContent='Please enter a username.'; return; }
+        let needsPIN = PROTECTED_NAMES.has(desired);
+        try{ 
+          const prof = await supabase.from('profiles').select('role').eq('username', desired).maybeSingle();
+          if(prof.data && prof.data.role==='owner') needsPIN = true;
+        }catch(e){ /* ignore */ }
+        if(needsPIN){ 
+          const pin = window.prompt('Owner PIN required to use this name:');
+          if(!pin) return;
+          try{ 
+            const { data, error } = await supabase.rpc('verify_owner_pin', { pin });
+            if(error || !data){ nameErr.textContent='Wrong PIN.'; return; }
+          }catch(e){ nameErr.textContent='PIN check failed.'; return; }
+        }
+        setUser(desired);
+        await supabase.from('profiles').upsert({ username: desired });
+        closeNameModal(); 
+        await refreshUserRoleUI(); 
+        updateUserUI(); 
+        const b=$('setNameBtn'); if(b) b.textContent='EDIT USERNAME';
+      },
+      nameCancel: ()=> closeNameModal(),
+      controlsBtn: ()=> { controlsOverlay.style.display='flex'; },
+      controlsClose: ()=> { controlsOverlay.style.display='none'; },
+      restartBtn: ()=> { if(screen==='playing') startPlaying(); },
+      backHomeBtn: ()=> goHome(),
+      applyCheat: ()=> applyCheatCode(),
+      ownerMenuBtn: ()=> { ownerOverlay.style.display='flex'; updateOwnerMenuUI(); },
+      ownerClose: ()=> { ownerOverlay.style.display='none'; },
+      applyRole: async ()=>{
+        const target=($('targetUser').value||'').trim(); 
+        const dropdown=($('targetRole').value||'player'); 
+        const custom=($('customRole').value||'').trim();
+        const role = custom || dropdown;
+        const pin=($('ownerPIN').value||'').trim(); 
+        if(!target||!pin){ $('pinMsg').textContent='Enter username and PIN.'; return; } 
+        const { data, error } = await supabase.rpc('grant_role', { target_username: target, new_role: role, pin }); 
+        $('pinMsg').textContent = error ? ('Error: '+error.message) : ('Applied! ' + target + ' → ' + role); 
+        await refreshUserRoleUI();
+      },
+      removeRoleBtn: async ()=>{
+        const target=($('removeUser').value||'').trim();
+        const pin=($('removePIN').value||'').trim();
+        if(!target||!pin){ $('removeMsg').textContent='Enter username and PIN.'; return; }
+        const { data, error } = await supabase.rpc('grant_role', { target_username: target, new_role: 'player', pin });
+        $('removeMsg').textContent = error ? ('Error: '+error.message) : ('Removed: ' + target + ' is now player');
+        await refreshUserRoleUI();
+      },
+      errToggleFloat: ()=> { errEl.style.display = (errEl.style.display==='block' ? 'none' : 'none'); },
+      applyDesiredRank: async ()=>{
+        const rankStr = (document.getElementById('desiredRank').value||'').trim();
+        const desiredRank = parseInt(rankStr,10);
+        const u = getUser();
+        if(!u || !Number.isFinite(desiredRank) || desiredRank<1){ document.getElementById('rankMsg').textContent='Enter a valid rank (1 or higher).'; return; }
+        const { data: rows, error } = await supabase.from('scores').select('username,best').order('best',{ascending:false}).limit(200);
+        if(error){ document.getElementById('rankMsg').textContent = 'Read error: '+error.message; return; }
+        if(!rows || rows.length===0){
+          await supabase.from('scores').upsert({ username:u, best: 1 }).select('best');
+          await updateUserUI(); if (lbOverlay.style.display === 'flex') { await openLeaderboard(); }
+          document.getElementById('rankMsg').textContent='Placed at rank 1 with 1 point.';
+          return;
+        }
+        if(desiredRank===1){
+          const topBest = rows[0].best || 0;
+          const newBest = topBest + 1;
+          await supabase.from('scores').upsert({ username: u, best: newBest }).select('best');
+          await updateUserUI(); if (lbOverlay.style.display === 'flex') { await openLeaderboard(); }
+          document.getElementById('rankMsg').textContent='Placed at rank 1 with '+newBest+'.';
+          return;
+        }
+        if(desiredRank > rows.length){
+          const lastBest = rows[rows.length-1].best || 0;
+          const newBest = Math.max(0, lastBest - 1);
+          await supabase.from('scores').upsert({ username:u, best: newBest }).select('best');
+          await updateUserUI(); if (lbOverlay.style.display === 'flex') { await openLeaderboard(); }
+          document.getElementById('rankMsg').textContent='Placed near bottom with '+newBest+'.';
+          return;
+        }
+        const aboveIndex = desiredRank - 2;
+        const aboveBest = rows[aboveIndex]?.best ?? 0;
+        let newBest = Math.max(0, aboveBest - 1);
+        while(newBest>0 && rows.some(r => r.best === newBest && r.username !== u)){ newBest -= 1; }
+        await supabase.from('scores').upsert({ username:u, best: newBest }).select('best');
+        await updateUserUI(); if (lbOverlay.style.display === 'flex') { await openLeaderboard(); }
+        document.getElementById('rankMsg').textContent='Placed at ~rank '+desiredRank+' with '+newBest+'.';
+      },
+      setBestCurrent: async ()=>{
+        const u=getUser(); if(!u) return;
+        await supabase.from('scores').upsert({ username:u, best: score });
+        await updateUserUI(); if (lbOverlay.style.display === 'flex') { await openLeaderboard(); }
+      },
+      setBestX: async ()=>{
+        const u=getUser(); if(!u) return;
+        const x = parseInt((document.getElementById('bestX').value||'').trim(),10);
+        if(Number.isFinite(x)){
+          await supabase.from('scores').upsert({ username:u, best: x });
+          await updateUserUI(); if (lbOverlay.style.display === 'flex') { await openLeaderboard(); }
+        }
+      },
+      themesBtn: ()=>{ renderThemes(); themesOverlay.style.display='flex'; },
+      themesClose: ()=>{ themesOverlay.style.display='none'; },
+      themeSelect: (btn)=>{ const key = btn.dataset.key; if(!key) return; applyTheme(key); renderThemes(); },
+      settingsBtn: ()=>{ settingsOverlay.style.display='flex'; syncSettingsUI(); },
+      settingsClose: ()=>{ settingsOverlay.style.display='none'; }
+    };
+    document.addEventListener('click', (e)=>{
+      const btn = e.target.closest('button, .themeCard');
+      if(!btn) return;
+      const act = btn.dataset.act || btn.id;
+      if(!act) return;
+      if(actions[act]){
+        try{
+          e.preventDefault(); e.stopPropagation();
+          actions[act](btn);
+        }catch(err){ showErr('BTN_ERR: '+(err.message||err)); }
+      }
+    }, {capture:true});
+
+    // Settings checkbox handlers
+    document.addEventListener('change', (e)=>{
+      const id = e.target && e.target.id;
+      if(id==='setAudio' || id==='setAnimBg' || id==='setScan' || id==='setErrBtn'){
+        settings[id==='setAudio'?'audio': id==='setAnimBg'?'animBg': id==='setScan'?'scanlines':'showErrBtn'] = !!e.target.checked;
+        saveSettings(settings);
+        syncSettingsUI();
+        if(id==='setAudio'){
+          if(settings.audio && screen==='playing' && !paused && !gameOver){ startAmbient(); } else { stopAmbient(); }
+        }
+        if(id==='setAnimBg'){ applyTheme(currentThemeKey); }
+        if(id==='setErrBtn'){ errToggleBtn.style.display = (screen==='playing' ? (settings.showErrBtn?'inline-block':'none') : (settings.showErrBtn?'inline-block':'none')); }
+      }
+    });
+
+    // Owner modal & sliders
+    const speedRange=$('speedRange'), spawnRange=$('spawnRange');
+    if(speedRange) speedRange.addEventListener('input', (e)=>{ $('speedLabel').textContent=e.target.value; baseObstacleSpeed=parseInt(e.target.value,10); cheats.slowmo=null; refreshEffectiveSpeeds(); }, {passive:true});
+    if(spawnRange) spawnRange.addEventListener('input', (e)=>{ $('spawnLabel').textContent=e.target.value; baseSpawnInterval=parseInt(e.target.value,10); cheats.fastspawn=null; refreshEffectiveSpeeds(); }, {passive:true});
+
+    // User info click & mobile drag, keys
+    userInfo.addEventListener('click', function(){ if(screen==='playing'){ showCheatBar(); } else { openNameModal(getUser()); } }, {passive:true});
+
+    let dragging=false;
+    const canvasX = (clientX)=>{ const r=canvas.getBoundingClientRect(); const x=(clientX-r.left)*(canvas.width/r.width); return Math.max(0, Math.min(canvas.width-player.width, x-player.width/2)); };
+    canvas.addEventListener('mousedown', e=>{ if(screen!=='playing') return; e.preventDefault(); dragging=true; player.x=canvasX(e.clientX); }, {passive:false});
+    window.addEventListener('mousemove', e=>{ if(dragging && screen==='playing'){ e.preventDefault(); player.x=canvasX(e.clientX); } }, {passive:false});
+    window.addEventListener('mouseup', ()=>{ dragging=false; }, {passive:true});
+    canvas.addEventListener('touchstart', e=>{ if(screen!=='playing') return; if(e.touches[0]){ e.preventDefault(); dragging=true; player.x=canvasX(e.touches[0].clientX);} }, {passive:false});
+    canvas.addEventListener('touchmove', e=>{ if(dragging && e.touches[0]){ e.preventDefault(); player.x=canvasX(e.touches[0].clientX);} }, {passive:false});
+    canvas.addEventListener('touchend', e=>{ e.preventDefault(); dragging=false; }, {passive:false});
+    canvas.addEventListener('touchcancel', e=>{ e.preventDefault(); dragging=false; }, {passive:false});
+
+    function isTypingTarget(t){ return t && (t.tagName==='INPUT' || t.tagName==='TEXTAREA' || t.isContentEditable); }
+    window.addEventListener('keydown', (e)=>{
+      if((e.key==='e'||e.key==='E') && !isTypingTarget(e.target)){ e.preventDefault(); errEl.style.display = (errEl.style.display==='block' ? 'none' : 'block'); return; }
+      const typing = isTypingTarget(e.target) || (cheatBar.style.display==='flex');
+      if(screen==='playing' && !lbOpen && !typing){
+        if(e.key==='ArrowLeft' || e.key==='Left' || e.keyCode===37){ e.preventDefault(); keys.left=true; }
+        if(e.key==='ArrowRight' || e.key==='Right' || e.keyCode===39){ e.preventDefault(); keys.right=true; }
+        if(e.key==='p' || e.key==='P' || e.keyCode===80){ e.preventDefault(); paused=!paused; if(paused) stopAmbient(); else startAmbient(); }
+        if(e.key==='Shift'){ e.preventDefault(); showCheatBar(); }
+      }
+      if(cheatBar.style.display==='flex'){
+        if(e.key==='Enter'){ e.preventDefault(); applyCheatCode(); }
+        if(e.key==='Escape'){ e.preventDefault(); closeCheatBar(); }
+      }
+      if(nameOverlay.style.display==='flex'){
+        if(e.key==='Enter'){ e.preventDefault(); document.getElementById('nameSave').click(); }
+        if(e.key==='Escape'){ e.preventDefault(); closeNameModal(); }
+      }
+      if(controlsOverlay.style.display==='flex' && e.key==='Escape'){ e.preventDefault(); controlsOverlay.style.display='none'; }
+      if(themesOverlay.style.display==='flex' && e.key==='Escape'){ e.preventDefault(); themesOverlay.style.display='none'; }
+      if(settingsOverlay.style.display==='flex' && e.key==='Escape'){ e.preventDefault(); settingsOverlay.style.display='none'; }
+    }, {passive:false});
+    window.addEventListener('keyup', (e)=>{ if(screen==='playing' && !lbOpen && !(isTypingTarget(e.target))){ if(e.key==='ArrowLeft' || e.key==='Left' || e.keyCode===37){ e.preventDefault(); keys.left=false; } if(e.key==='ArrowRight' || e.key==='Right' || e.keyCode===39){ e.preventDefault(); keys.right=false; } } }, {passive:false});
+
+    // PIN input bleep
+    let pinCtx=null, pinOsc=null, pinGain=null, pinTimer=null, pinSeqIndex=0;
+    const pinScale=[261.63, 311.13, 349.23, 392.00, 466.16];
+    function startPinMusic(){
+      try{
+        if(pinCtx) return;
+        pinCtx = new (window.AudioContext||window.webkitAudioContext)();
+        pinGain = pinCtx.createGain(); pinGain.gain.value = 0.025; pinGain.connect(pinCtx.destination);
+        pinTimer = setInterval(()=>{
+          if(!pinCtx) return;
+          const freq = pinScale[pinSeqIndex++ % pinScale.length];
+          if(pinOsc) { try{ pinOsc.stop(); }catch{} }
+          pinOsc = pinCtx.createOscillator();
+          pinOsc.type = 'triangle';
+          pinOsc.frequency.value = freq;
+          pinOsc.connect(pinGain);
+          pinOsc.start();
+          pinOsc.stop(pinCtx.currentTime + 0.6);
+        }, 700);
+      }catch(e){}
+    }
+    function stopPinMusic(){
+      try{
+        if(pinTimer) clearInterval(pinTimer); pinTimer=null;
+        if(pinOsc){ try{ pinOsc.stop(); }catch{} pinOsc=null; }
+        if(pinCtx){ try{ pinCtx.close(); }catch{} pinCtx=null; }
+      }catch(e){}
+    }
+    ownerOverlay.addEventListener('focusin', (e)=>{ if(e.target && e.target.id==='ownerPIN'){ startPinMusic(); } });
+    ownerOverlay.addEventListener('focusout', (e)=>{ if(e.target && e.target.id==='ownerPIN'){ stopPinMusic(); } });
+
+    async function updateUserUI(){
+      const u=getUser();
+      if(!u){
+        highInfo.textContent='High: 0';
+        renderUserInfoBadge(u, 'player');
+        netInfo.textContent = 'Online (no user)';
+        currentRole='player'; isOwner=false;
+        return;
+      }
+      const localBest = (loadScoresLocal()[u] || 0);
+      const { data, error } = await supabase.from('scores').select('best').eq('username', u).maybeSingle();
+      const remoteBest = error ? 0 : (data?.best || 0);
+      highInfo.textContent='High: '+Math.max(localBest, remoteBest);
+      netInfo.textContent = error ? 'Online (read error)' : 'Online';
+      const { role } = await ensureProfile(u);
+      currentRole = role || (OWNER_USERNAMES.has(u) ? 'owner' : 'player');
+      renderUserInfoBadge(u, currentRole);
+    }
+
+    (async function init(){
+      settings = loadSettings(); syncSettingsUI();
+      applyTheme(currentThemeKey);
+      const b=document.getElementById('setNameBtn'); if(b) b.textContent=getUser()?'EDIT USERNAME':'SET USERNAME';
+      try{ await updateUserUI(); }catch(e){ showErr('INIT_ERR: '+(e.message||e)); }
+    })();
+  })();
+  </script>
+</body>
+</html>
