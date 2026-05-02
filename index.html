@@ -553,8 +553,7 @@
     const player={x:180,y:550,width:40,height:40,speed:24,color:'#39ff14'};
     let obstacles=[], baseObstacleSpeed=4, obstacleSpeed=baseObstacleSpeed;
     let score=0, gameOver=false, baseSpawnInterval=500, spawnInterval=baseSpawnInterval;
-    let spawnTimer=null, paused=true, speedIncreaseTimer=null, maxObstacleSpeed=12;
-    let keys={left:false,right:false}; let screen='home', lbOpen=false;
+    let spawnTimer=null, paused=true, speedIncreaseTimer=null, maxObstacleSpeed=12;const smartAI={enabled:true,wiggle:240};let keys={left:false,right:false}; let screen='home', lbOpen=false;
 
     const cheats={ godmode:false, reverse:false, rainbow:false, ghost:false, speedy:false, bigplayer:false, tinyplayer:false, slowmo:null, slowtime:null, fastspawn:null };
     const ownerPresetCheats = { godmode:false, reverse:false, rainbow:false, ghost:false, speedy:false, bigplayer:false, tinyplayer:false, slowmo:null, slowtime:null, fastspawn:null };
@@ -617,7 +616,7 @@
     function spawnObstacle(){
       if(!paused && !gameOver){
         const w=Math.random()*60+20, x=Math.random()*(canvas.width-w);
-        obstacles.push({x, y: cheats.reverse? canvas.height+20 : -20, width:w, height:20, color: curTheme().obstacle});
+        obstacles.push({x:(smartAI.enabled?Math.max(0,Math.min(canvas.width-w,player.x+(Math.random()-0.5)*smartAI.wiggle)):x), y: cheats.reverse? canvas.height+20 : -20, width:w, height:20, color: curTheme().obstacle});
       }
     }
 
