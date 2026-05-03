@@ -653,7 +653,7 @@
 
       if(keys.left) player.x-=player.speed;
       if(keys.right) player.x+=player.speed;
-      if(cheats.warp){if(player.x<0)player.x=canvas.width-player.width;else if(player.x+player.width>canvas.width)player.x=0;}else{if(player.x<0)player.x=0;else if(player.x+player.width}
+      if(cheats.warp){if(player.x<0)player.x=canvas.width-player.width;else if(player.x+player.width>canvas.width)player.x=0;}else{if(player.x<0)player.x=0;else if(player.x+player.width>canvas.width)player.x=canvas.width-player.width;}
 
       obstacles.forEach(o=> o.y += (cheats.reverse? -obstacleSpeed : obstacleSpeed));
       obstacles = obstacles.filter(o=> o.y<canvas.height+40 && o.y>-40);
