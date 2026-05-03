@@ -555,8 +555,8 @@
     let score=0, gameOver=false, baseSpawnInterval=500, spawnInterval=baseSpawnInterval;
     let spawnTimer=null, paused=true, speedIncreaseTimer=null, maxObstacleSpeed=12;const smartAI={enabled:true,wiggle:240};let keys={left:false,right:false}; let screen='home', lbOpen=false;
 
-    const cheats={ godmode:false, reverse:false, rainbow:false, ghost:false, speedy:false, bigplayer:false, tinyplayer:false, slowmo:null, slowtime:null, fastspawn:null };
-    const ownerPresetCheats = { godmode:false, reverse:false, rainbow:false, ghost:false, speedy:false, bigplayer:false, tinyplayer:false, slowmo:null, slowtime:null, fastspawn:null };
+    const cheats={ godmode:false, reverse:false, rainbow:false, ghost:false,warp:false, speedy:false, bigplayer:false, tinyplayer:false, slowmo:null, slowtime:null, fastspawn:null };
+    const ownerPresetCheats = { godmode:false, reverse:false, rainbow:false, ghost:false,warp:false, speedy:false, bigplayer:false, tinyplayer:false, slowmo:null, slowtime:null, fastspawn:null };
 
     // Ambient audio per theme
     let audioCtx=null, masterGain=null, aTimer=null;
@@ -653,8 +653,7 @@
 
       if(keys.left) player.x-=player.speed;
       if(keys.right) player.x+=player.speed;
-      if(player.x<0) player.x=0;
-      if(player.x+player.width>canvas.width) player.x=canvas.width-player.width;
+      if(cheats.warp){if(player.x<0)player.x=canvas.width-player.width;else if(player.x+player.width>canvas.width)player.x=0;}else{if(player.x<0)player.x=0;else if(player.x+player.width>canvas.width)player.x=canvas.width-player.width;}>canvas.width) player.x=canvas.width-player.width;
 
       obstacles.forEach(o=> o.y += (cheats.reverse? -obstacleSpeed : obstacleSpeed));
       obstacles = obstacles.filter(o=> o.y<canvas.height+40 && o.y>-40);
