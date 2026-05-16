@@ -23,14 +23,15 @@
       animation: crtFlicker 6s linear infinite;
     }
 
-    /* BLOOD MOON — dark crimson night sky with pulsing red moon */
-    @keyframes moonPulse { 0%,100%{opacity:1;} 50%{opacity:.82;} }
+    /* EPRINTZ — charcoal dark with brand-red glow */
+    @keyframes eprintzPulse { 0%,100%{opacity:1;} 50%{opacity:.9;} }
     .bg-midnight {
       background:
-        radial-gradient(circle at 80% 12%, rgba(255,25,0,.38) 0%, rgba(200,10,0,.08) 22%, transparent 32%),
-        radial-gradient(ellipse 110% 45% at 50% 108%, rgba(180,0,15,.28), transparent 55%),
-        linear-gradient(158deg, #0e0001 0%, #220005 38%, #180004 65%, #090001 100%);
-      animation: moonPulse 5s ease-in-out infinite;
+        radial-gradient(ellipse 80% 55% at 50% 0%,  rgba(204,30,30,.20), transparent 60%),
+        radial-gradient(ellipse 50% 40% at 100% 50%, rgba(180,20,20,.09), transparent 55%),
+        radial-gradient(ellipse 50% 40% at 0%   50%, rgba(180,20,20,.07), transparent 55%),
+        linear-gradient(160deg, #131313 0%, #1c1c1c 35%, #161616 65%, #0e0e0e 100%);
+      animation: eprintzPulse 4s ease-in-out infinite;
     }
 
     /* SYNTHWAVE — 80s neon sunset with perspective grid stripes */
@@ -325,7 +326,7 @@
     <div class="modal">
       <button id="themesClose" class="btn" type="button" style="float:right;">Close</button>
       <h3>Unlockable Themes</h3>
-      <div class="hint">Unlocks: Neon ≥ 500, Midnight ≥ 2000, Vaporwave ≥ 5000, Cyber Grid ≥ 8000, Galaxy Drift ≥ 12000</div>
+      <div class="hint">Unlocks: Neon Arcade ≥ 500, EPrintz ≥ 2000, Synthwave ≥ 5000, Cyber Grid ≥ 8000, Deep Space ≥ 12000</div>
       <div id="themesList"></div>
     </div>
   </div>
@@ -395,7 +396,7 @@
     const THEMES = {
       default:  { key:'default',  name:'Default',      req:0,     bgClass:'',          bg:'#0b0b0b', player:'#39ff14', obstacle:'#ff3333', accent:'#33ff66', hud:'#ffffff', hud2:'#ffcc00', audio:'none',  outline1:'#33ff66', outline2:'#ff3333' },
       neon:     { key:'neon',     name:'Neon Arcade',  req:500,   bgClass:'bg-neon',   bg:'#030008', player:'#00ffee', obstacle:'#ff00aa', accent:'#00ffee', hud:'#00ffee', hud2:'#ff00aa', audio:'hum',   outline1:'#00ffee', outline2:'#ff00aa' },
-      midnight: { key:'midnight', name:'Blood Moon',   req:2000,  bgClass:'bg-midnight',bg:'#0e0001',player:'#ffffff', obstacle:'#ff6600', accent:'#ff4400', hud:'#ffbb99', hud2:'#ff6600', audio:'space', outline1:'#ff4400', outline2:'#ff8800' },
+      midnight: { key:'midnight', name:'EPrintz',      req:2000,  bgClass:'bg-midnight',bg:'#111111',player:'#e02525', obstacle:'#e8e8e8', accent:'#cc2020', hud:'#ffffff', hud2:'#e02525', audio:'space', outline1:'#cc2020', outline2:'#e8e8e8' },
       vapor:    { key:'vapor',    name:'Synthwave',    req:5000,  bgClass:'bg-vapor',  bg:'#07001a', player:'#ff9500', obstacle:'#ff1493', accent:'#ff9500', hud:'#ffff44', hud2:'#ff9500', audio:'pad',   outline1:'#ff9500', outline2:'#ff1493' },
       cyber:    { key:'cyber',    name:'Cyber Grid',   req:8000,  bgClass:'bg-cyber',  bg:'#051113', player:'#ffff00', obstacle:'#ff0055', accent:'#ffff00', hud:'#ffff00', hud2:'#00ffcc', audio:'hum',   outline1:'#ffff00', outline2:'#ff0055', line:'#00ffcc' },
       galaxy:   { key:'galaxy',   name:'Deep Space',   req:12000, bgClass:'bg-galaxy3',bg:'#030010', player:'#ffe94d', obstacle:'#9933ff', accent:'#ffe94d', hud:'#ffffff', hud2:'#ffe94d', audio:'pad',   outline1:'#ffe94d', outline2:'#9933ff', line:'#ffe94d' }
@@ -847,13 +848,28 @@
       }
       if(currentThemeKey==='midnight'){
         ctx.save();
-        const mx=canvas.width*0.82, my=44, mr=26;
-        const grd=ctx.createRadialGradient(mx,my,0,mx,my,mr*3.5);
-        grd.addColorStop(0,'rgba(255,40,0,0.32)'); grd.addColorStop(0.35,'rgba(255,10,0,0.10)'); grd.addColorStop(1,'rgba(255,0,0,0)');
-        ctx.fillStyle=grd; ctx.fillRect(mx-mr*4,0,mr*8,my+mr*5);
-        ctx.beginPath(); ctx.arc(mx,my,mr,0,Math.PI*2);
-        ctx.fillStyle=`rgba(230,55,15,${0.8+Math.sin(Date.now()/2200)*0.12})`;
-        ctx.shadowColor='#ff2200'; ctx.shadowBlur=22; ctx.fill();
+
+        // Red brand glow from top
+        const topGrd=ctx.createLinearGradient(0,0,0,100);
+        topGrd.addColorStop(0,'rgba(204,30,30,0.18)'); topGrd.addColorStop(1,'rgba(204,30,30,0)');
+        ctx.fillStyle=topGrd; ctx.fillRect(0,0,canvas.width,100);
+
+        // Subtle diagonal charcoal print-texture lines
+        ctx.globalAlpha=0.045; ctx.strokeStyle='#cc2020'; ctx.lineWidth=1;
+        for(let i=-canvas.height; i<canvas.width+canvas.height; i+=22){
+          ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i+canvas.height,canvas.height); ctx.stroke();
+        }
+
+        // Cross/plus watermark (EPrintz logo element) — top-right corner
+        const cx2=canvas.width-38, cy2=38, arm=22, thick=7;
+        ctx.globalAlpha=0.10; ctx.fillStyle='#cc2020';
+        ctx.fillRect(cx2-thick/2, cy2-arm, thick, arm*2); // vertical
+        ctx.fillRect(cx2-arm,     cy2-thick/2, arm*2, thick); // horizontal
+
+        // Thin red line accent along top edge
+        ctx.globalAlpha=0.35; ctx.fillStyle='#cc2020';
+        ctx.fillRect(0,0,canvas.width,2);
+
         ctx.restore();
       }
       if(currentThemeKey==='vapor'){
