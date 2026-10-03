@@ -998,7 +998,7 @@ h2 {
   width:23px;
   height:23px;
   display:grid;
-  place-items:center;
+    place-items:center;
   border-radius:6px;
   background:#29392c;
   color:#bed2ad;
@@ -1998,7 +1998,7 @@ body.no-scanlines .preview-grid {
     margin:12px 0 0;
     padding:12px 0
   }
-  .game-bottomline #comboInfo {
+    .game-bottomline #comboInfo {
     display:none
   }
   .game-shell {
@@ -2998,7 +2998,7 @@ const supabase = window.supabase?.createClient
         targetX=nearPU ? nearPU.x+nearPU.width/2-player.width/2 : canvas.width/2-player.width/2;
       } else {
         let bestX=player.x, bestScore=-Infinity;
-        for(let tx=0; tx<=canvas.width-player.width; tx+=8){
+                for(let tx=0; tx<=canvas.width-player.width; tx+=8){
           let minGap=Infinity;
           for(const o of danger){
             const pr=tx+player.width, or=o.x+o.width;
